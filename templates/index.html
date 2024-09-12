@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucia Baby Log Input</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            height: 100vh;
+            padding: 10px;
+        }
+        h1 {
+            margin-bottom: 20px;
+            font-size: 1.5em; /* Make the header larger for mobile */
+        }
+        h2 {
+            font-size: 1.2em; /* Running log title */
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label, select, input, button {
+            font-size: 1.2em; /* Increase font size by 20% */
+            width: 80%;
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 10px;
+        }
+        input, select {
+            display: block;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 1.2em;
+        }
+        button {
+            padding: 10px 10px;
+            font-size: 1em;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            width: 80%; /* Button takes up 50% of the screen width */
+            display: block;
+            margin: 20px auto;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #message {
+            color: black;
+            margin-top: 5px;
+        }
+        #log {
+            margin-top: 5px;
+            text-align: left;
+            min-height: 100px;
+            max-height: 300px;
+            overflow-y: scroll;
+            width: 90%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            font-size: 1.2em;
+            word-wrap: break-word; /* Ensure text wraps correctly */
+        }
+    </style>
+</head>
+<body>
+    <h1>Lucia Baby Log Input</h1>
+    <div class="form-group">
+        <label for="time">Select Time: </label>
+        <input type="datetime-local" id="time" name="time">
+    </div>
+    <div class="form-group">
+        <select id="activity">
+            <option value="" disabled selected>CHOOSE ACTIVITY</option>
+            <option value="asleep">Asleep</option>
+            <option value="awake">Awake</option>
+            <option value="wet diaper">Wet Diaper</option>
+            <option value="poo diaper">Poo Diaper</option>
+            <option value="mixed diaper">Mixed Diaper</option>
+            <option value="playing">Playing</option>
+            <option value="feeding">Feeding</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <input type="text" id="notes" placeholder="Add a short note (e.g., 60mL)">
+    </div>
+    <button onclick="addActivity()" style="width: 30%; display: block; margin: 0 auto;">Add Activity</button>
+    <p class="error" id="error-message">Please select an activity</p>
+    <p id="returned">Newly added line will display here</p>
+    
+    <div id="log"></div>
+    
+    <script>
+        // Function to fetch and display the log
+        function loadLog() {
+            fetch('/get_log')
+                .then(response => response.json())
+                .then(data => {
+                    const logElement = document.getElementById('log');
+                    logElement.innerHTML = data.log_entries.map(entry => `<div>${entry}</div>`).join('');
+                });
+        }
+        
+       
+        // Set current time as default value
+        document.getElementById('time').value = getESTDateTime();
+
+		function getESTDateTime() {
+            const now = new Date();
+            const utcOffset = now.getTimezoneOffset(); // Offset in minutes
+
+            // Eastern Time is UTC-5 during Standard Time, UTC-4 during Daylight Saving Time
+            // For some reason we had to adjust it to 8 or 7 to make it work, but ok...
+            const estOffset = (now.getTimezoneOffset() === 240 ? 8 : 7) * 60;
+            const estTime = new Date(now.getTime() + (utcOffset - estOffset) * 60000);
+
+            return estTime.toISOString().slice(0, 16);
+        }
+
+        function addActivity() {
+            const time = document.getElementById('time').value;
+            const activity = document.getElementById('activity').value;
+            const notes = document.getElementById('notes').value;
+            const errorMessage = document.getElementById('error-message');
+            const messageElement = document.getElementById('message');
+
+            if (!activity) {
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            errorMessage.style.display = 'none';
+
+            // Update the log.txt file
+            fetch('/add_activity', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ time, activity, notes })
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      document.getElementById('activity').selectedIndex = 0;
+                      document.getElementById('notes').value = '';
+                      const timestamp = new Date(time).toLocaleString("en-US", { timeZone: "America/New_York" });
+                      messageElement.textContent = `Added activity: ${timestamp}, ${activity}, ${notes}`;
+                      // Reload the log after adding an entry
+                      loadLog();
+                  }
+              });
+        }
+        
+		// Load the log when the page loads
+        window.onload = loadLog;
+    </script>
+</body>
+</html>
