@@ -14,7 +14,7 @@
             flex-direction: column;
             justify-content: flex-start;
             height: 100vh;
-            padding: 10px;
+            padding: 2px;
         }
         h1 {
             margin-bottom: 20px;
@@ -35,8 +35,8 @@
         }
         input, select {
             display: block;
-            margin-bottom: 10px;
-            padding: 10px;
+            margin-bottom: 5px;
+            padding: 5px;
             font-size: 1.2em;
         }
         button {
@@ -56,7 +56,7 @@
         }
         #message {
             color: black;
-            margin-top: 5px;
+            margin-top: 2px;
         }
         #log {
             margin-top: 5px;
@@ -99,6 +99,9 @@
     <button onclick="addActivity()" style="width: 30%; display: block; margin: 0 auto;">Add Activity</button>
     <p class="error" id="error-message">Please select an activity</p>
     <p id="returned">Newly added line will display here</p>
+    
+    <!-- Button to manually refresh the log -->
+    <button onclick="loadLog()">Refresh Log</button>
     
     <div id="log"></div>
     
@@ -160,6 +163,9 @@
                       // Reload the log after adding an entry
                       loadLog();
                   }
+              })
+              .catch(error => {
+                  console.error("Error adding activity:", error);
               });
         }
         
