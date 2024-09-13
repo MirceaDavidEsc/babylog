@@ -19,6 +19,7 @@ def get_log():
         return jsonify(log_entries=[])
 
 
+
 # Route to handle adding a new activity
 @app.route('/add_activity', methods=['POST'])
 def add_activity():
@@ -33,6 +34,7 @@ def add_activity():
 
     # Return success and the updated log
     get_log()
+    #test
 
 # Trigger refresh
 if __name__ == '__main__':
