@@ -16,9 +16,8 @@ def get_log():
             log_entries = f.readlines()
             
         # Parse each line, extract the timestamp, and sort by timestamp
-        log_entries_sorted = sorted(log_entries, key=lambda x: datetime.strptime(x.split(',')[0], '%Y-%m-%dT%H:%M:%S'), reverse=True)
-
-        return jsonify(log_entries=log_entries_sorted)
+        # log_entries_sorted = sorted(log_entries, key=lambda x: datetime.strptime(x.split(',')[0], '%Y-%m-%dT%H:%M:%S'), reverse=True)
+        return jsonify(log_entries=log_entries)
     except FileNotFoundError:
         return jsonify(log_entries=[])
 
@@ -37,6 +36,7 @@ def add_activity():
 
     # Return success and the updated log
     get_log()
+
 
 if __name__ == '__main__':
     app.run()
