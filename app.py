@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify, render_template
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -13,11 +14,13 @@ def get_log():
     try:
         with open('log.txt', 'r') as f:
             log_entries = f.readlines()
-        log_entries.reverse()  # Reverse the order to show the latest entries first
-        return jsonify(log_entries=log_entries)
+            
+        # Parse each line, extract the timestamp, and sort by timestamp
+        log_entries_sorted = sorted(log_entries, key=lambda x: datetime.strptime(x.split(',')[0], '%Y-%m-%dT%H:%M:%S'), reverse=True)
+
+        return jsonify(log_entries=log_entries_sorted)
     except FileNotFoundError:
         return jsonify(log_entries=[])
-
 
 
 # Route to handle adding a new activity
@@ -32,10 +35,9 @@ def add_activity():
     with open('log.txt', 'a') as f:
         f.write(f"{time},{activity},{notes}\n")
 
-    # Return success and the updated log
-    get_log()
-    #test
+    # Sort log entries by time in descending order (most recent first)
+    log_entries_sorted = sorted(log_entries, key=lambda x: datetime.strptime(x.split(',')[0], '%Y-%m-%dT%H:%M:%S'), reverse=True)
+    return jsonify(success=True, log_entries=log_entries_sorted)
 
-# Trigger refresh
 if __name__ == '__main__':
     app.run()
