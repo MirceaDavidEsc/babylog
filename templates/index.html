@@ -18,16 +18,16 @@
         }
         h1 {
             margin-bottom: 20px;
-            font-size: 1.5em; /* Make the header larger for mobile */
+            font-size: 1.5em;
         }
         h2 {
-            font-size: 1.2em; /* Running log title */
+            font-size: 1.2em;
         }
         .form-group {
             margin-bottom: 15px;
         }
-        label, select, input, button {
-            font-size: 1.2em; /* Increase font size by 20% */
+        label, select, input {
+            font-size: 1.2em;
             width: 80%;
             max-width: 400px;
             margin: 0 auto;
@@ -39,19 +39,22 @@
             padding: 5px;
             font-size: 1.2em;
         }
-        button {
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+        .button-group button {
+            flex: 1;
             padding: 10px 10px;
             font-size: 1em;
             background-color: #4CAF50;
             color: white;
             border: none;
             cursor: pointer;
-            width: 80%; /* Button takes up 50% of the screen width */
-            display: block;
-            margin: 20px auto;
             border-radius: 5px;
         }
-        button:hover {
+        .button-group button:hover {
             background-color: #45a049;
         }
         #message {
@@ -71,7 +74,7 @@
             border: 1px solid #ddd;
             padding: 10px;
             font-size: 1.2em;
-            word-wrap: break-word; /* Ensure text wraps correctly */
+            word-wrap: break-word;
         }
     </style>
 </head>
@@ -96,15 +99,16 @@
     <div class="form-group">
         <input type="text" id="notes" placeholder="Add a short note (e.g., 60mL)">
     </div>
-    <button onclick="addActivity()" style="width: 30%; display: block; margin: 0 auto;">Add Activity</button>
-    <p class="error" id="error-message">Please select an activity</p>
-    <p id="returned">Newly added line will display here</p>
     
-    <!-- Button to manually refresh the log -->
-    <button onclick="loadLog()">Refresh Log</button>
-    
+    <!-- Button group with equal-sized buttons in one row -->
+    <div class="button-group">
+        <button onclick="addActivity()">Add Activity</button>
+        <button onclick="loadLog()">Refresh Log</button>
+        <button onclick="sortLog()">Sort Log</button>
+    </div>
+
     <div id="log"></div>
-    
+
     <script>
         // Function to fetch and display the log
         function loadLog() {
@@ -115,29 +119,12 @@
                     logElement.innerHTML = data.log_entries.map(entry => `<div>${entry}</div>`).join('');
                 });
         }
-        
-       
-        // Set current time as default value
-        document.getElementById('time').value = getESTDateTime();
-
-		function getESTDateTime() {
-            const now = new Date();
-            const utcOffset = now.getTimezoneOffset(); // Offset in minutes
-
-            // Eastern Time is UTC-5 during Standard Time, UTC-4 during Daylight Saving Time
-            // For some reason we had to adjust it to 8 or 7 to make it work, but ok...
-            const estOffset = (now.getTimezoneOffset() === 240 ? 8 : 7) * 60;
-            const estTime = new Date(now.getTime() + (utcOffset - estOffset) * 60000);
-
-            return estTime.toISOString().slice(0, 16);
-        }
 
         function addActivity() {
             const time = document.getElementById('time').value;
             const activity = document.getElementById('activity').value;
             const notes = document.getElementById('notes').value;
             const errorMessage = document.getElementById('error-message');
-            const messageElement = document.getElementById('message');
 
             if (!activity) {
                 errorMessage.style.display = 'block';
@@ -146,7 +133,6 @@
 
             errorMessage.style.display = 'none';
 
-            // Update the log.txt file
             fetch('/add_activity', {
                 method: 'POST',
                 headers: {
@@ -158,18 +144,33 @@
                   if (data.success) {
                       document.getElementById('activity').selectedIndex = 0;
                       document.getElementById('notes').value = '';
-                      const timestamp = new Date(time).toLocaleString("en-US", { timeZone: "America/New_York" });
-                      messageElement.textContent = `Added activity: ${timestamp}, ${activity}, ${notes}`;
-                      // Reload the log after adding an entry
-                      loadLog();
+                      loadLog(); // Reload log after adding an entry
                   }
               })
               .catch(error => {
                   console.error("Error adding activity:", error);
               });
         }
-        
-		// Load the log when the page loads
+
+        // New function to sort the log
+        function sortLog() {
+            fetch('/sort_log', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).then(response => response.json())
+              .then(data => {
+                  if (data.success) {
+                      loadLog(); // Reload the log after sorting
+                  }
+              })
+              .catch(error => {
+                  console.error("Error sorting log:", error);
+              });
+        }
+
+        // Load the log when the page loads
         window.onload = loadLog;
     </script>
 </body>
