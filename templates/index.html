@@ -121,36 +121,33 @@
         }
 
         function addActivity() {
-            const time = document.getElementById('time').value;
-            const activity = document.getElementById('activity').value;
-            const notes = document.getElementById('notes').value;
-            const errorMessage = document.getElementById('error-message');
+			const time = document.getElementById('time').value;
+			const activity = document.getElementById('activity').value;
+			const notes = document.getElementById('notes').value;
 
-            if (!activity) {
-                errorMessage.style.display = 'block';
-                return;
-            }
+			console.log("Time:", time);
+			console.log("Activity:", activity);
+			console.log("Notes:", notes);
 
-            errorMessage.style.display = 'none';
 
-            fetch('/add_activity', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ time, activity, notes })
-            }).then(response => response.json())
-              .then(data => {
-                  if (data.success) {
-                      document.getElementById('activity').selectedIndex = 0;
-                      document.getElementById('notes').value = '';
-                      loadLog(); // Reload log after adding an entry
-                  }
-              })
-              .catch(error => {
-                  console.error("Error adding activity:", error);
-              });
-        }
+			fetch('/add_activity', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ time, activity, notes })
+			}).then(response => response.json())
+			  .then(data => {
+				  if (data.success) {
+					  document.getElementById('activity').selectedIndex = 0;
+					  document.getElementById('notes').value = '';
+				  }
+			  })
+			  .catch(error => {
+				  console.error("Error adding activity:", error);
+			  });
+		}
+
 
         // New function to sort the log
         function sortLog() {

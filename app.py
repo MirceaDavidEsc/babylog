@@ -23,6 +23,7 @@ def get_log():
 @app.route('/add_activity', methods=['POST'])
 def add_activity():
     data = request.json
+    print(f"Received data: {data}")  # Debugging line
     time = data['time']
     activity = data['activity']
     notes = data['notes'] if data['notes'] else 'no notes'
@@ -36,6 +37,7 @@ def add_activity():
         log_entries = f.readlines()
     log_entries.reverse()  # Return the log in reverse order
     return jsonify(success=True, log_entries=log_entries)
+
 
 # Route to sort the log entries by timestamp and overwrite log.txt
 @app.route('/sort_log', methods=['POST'])
