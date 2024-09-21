@@ -1,82 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Lucia Baby Log Input</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            height: 100vh;
-            padding: 2px;
-        }
-        h1 {
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-        h2 {
-            font-size: 1.2em;
-        }
-        .form-group {
-            margin-bottom: 15px;
-        }
-        label, select, input {
-            font-size: 1.2em;
-            width: 80%;
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 10px;
-        }
-        input, select {
-            display: block;
-            margin-bottom: 5px;
-            padding: 5px;
-            font-size: 1.2em;
-        }
-        .button-group {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-        }
-        .button-group button {
-            flex: 1;
-            padding: 10px 10px;
-            font-size: 1em;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        .button-group button:hover {
-            background-color: #45a049;
-        }
-        #message {
-            color: black;
-            margin-top: 2px;
-        }
-        #log {
-            margin-top: 5px;
-            text-align: left;
-            min-height: 100px;
-            max-height: 300px;
-            overflow-y: scroll;
-            width: 90%;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            border: 1px solid #ddd;
-            padding: 10px;
-            font-size: 1.2em;
-            word-wrap: break-word;
-        }
-    </style>
+	<link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <h1>Lucia Baby Log Input</h1>
@@ -85,16 +15,17 @@
         <input type="datetime-local" id="time" name="time">
     </div>
     <div class="form-group">
-        <select id="activity">
-            <option value="" disabled selected>CHOOSE ACTIVITY</option>
-            <option value="asleep">Asleep</option>
-            <option value="awake">Awake</option>
-            <option value="wet diaper">Wet Diaper</option>
-            <option value="poo diaper">Poo Diaper</option>
-            <option value="mixed diaper">Mixed Diaper</option>
-            <option value="playing">Playing</option>
-            <option value="feeding">Feeding</option>
-        </select>
+       <select id="activity">
+			<option value="" disabled selected>CHOOSE ACTIVITY</option>
+			<option value="asleep">Asleep</option>
+			<option value="awake">Awake</option>
+			<option value="wet diaper">Wet Diaper</option>
+			<option value="poo diaper">Poo Diaper</option>
+			<option value="mixed diaper">Mixed Diaper</option>
+			<option value="playing">Playing</option>
+			<option value="feeding">Feeding</option>
+			<option value="bathing">Bathing</option> 
+		</select>
     </div>
     <div class="form-group">
         <input type="text" id="notes" placeholder="Add a short note (e.g., 60mL)">
@@ -106,10 +37,64 @@
         <button onclick="loadLog()">Refresh Log</button>
         <button onclick="sortLog()">Sort Log</button>
     </div>
+    
+	<!-- New button to edit the log -->
+    <button id="edit-log-btn" class="edit-log-btn" onclick="toggleEditLog()">Edit Log</button>
+
 
     <div id="log"></div>
+	<textarea id="log-textarea"></textarea>
+
 
     <script>
+		        let isEditing = false; // Track editing state
+
+        // Function to toggle between viewing and editing the log
+        function toggleEditLog() {
+            const logElement = document.getElementById('log');
+            const textarea = document.getElementById('log-textarea');
+            const editLogBtn = document.getElementById('edit-log-btn');
+            
+            if (isEditing) {
+                // Save the edited log
+                const newLogContents = textarea.value;
+
+                fetch('/update_log', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ log: newLogContents })
+                }).then(response => response.json())
+                  .then(data => {
+                      if (data.success) {
+                          loadLog(); // Reload log after saving
+                      }
+                  });
+
+                // Switch back to view mode
+                textarea.style.display = 'none';
+                logElement.style.display = 'block';
+                editLogBtn.textContent = 'Edit Log';
+                editLogBtn.classList.remove('editing');
+            } else {
+                // Enter edit mode
+                fetch('/get_log')
+                    .then(response => response.json())
+                    .then(data => {
+                        textarea.value = data.log_entries.join('');
+                    });
+
+                textarea.style.display = 'block';
+                logElement.style.display = 'none';
+                editLogBtn.textContent = 'Finish Editing';
+                editLogBtn.classList.add('editing');
+            }
+
+            isEditing = !isEditing; // Toggle editing state
+        }
+		
+		
         // Function to fetch and display the log
         function loadLog() {
             fetch('/get_log')
@@ -118,8 +103,8 @@
                     const logElement = document.getElementById('log');
                     logElement.innerHTML = data.log_entries.map(entry => `<div>${entry}</div>`).join('');
                 });
-        }
-
+        };
+         
         function addActivity() {
 			const time = document.getElementById('time').value;
 			const activity = document.getElementById('activity').value;
