@@ -18,6 +18,24 @@ def get_log():
         return jsonify(log_entries=log_entries)
     except FileNotFoundError:
         return jsonify(log_entries=[])
+        
+#test
+# Route to update log.txt with new content
+@app.route('/update_log', methods=['POST'])
+def update_log():
+    try:
+        # Get the new log content from the request
+        new_log_content = request.json['log']
+
+        # Overwrite log.txt with the new content
+        with open('log.txt', 'w') as f:
+            f.write(new_log_content)
+
+        # Return success response
+        return jsonify(success=True)
+    except Exception as e:
+        # Return error response in case of failure
+        return jsonify(success=False, error=str(e))
 
 # Route to handle adding a new activity
 @app.route('/add_activity', methods=['POST'])
@@ -40,6 +58,8 @@ def add_activity():
 
 
 # Route to sort the log entries by timestamp and overwrite log.txt
+# Sorting log testing comment
+
 @app.route('/sort_log', methods=['POST'])
 def sort_log():
     try:

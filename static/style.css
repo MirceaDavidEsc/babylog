@@ -55,6 +55,11 @@ input, select {
     border-radius: 5px;
 }
 
+/* Hover effect for all buttons */
+.button-group button:hover {
+	    background-color: #45a049; /* Slightly darker green */
+}
+
 #edit-log-btn {
     background-color: #4CAF50; /* Green */
     color: white;

@@ -47,7 +47,7 @@
 
 
     <script>
-		        let isEditing = false; // Track editing state
+		let isEditing = false; // Track editing state
 
         // Function to toggle between viewing and editing the log
         function toggleEditLog() {
@@ -97,6 +97,8 @@
 		
         // Function to fetch and display the log
         function loadLog() {
+			console.log("Refreshing log.");
+			
             fetch('/get_log')
                 .then(response => response.json())
                 .then(data => {
@@ -136,6 +138,7 @@
 
         // New function to sort the log
         function sortLog() {
+			console.log("Sorting log.")
             fetch('/sort_log', {
                 method: 'POST',
                 headers: {
@@ -144,6 +147,7 @@
             }).then(response => response.json())
               .then(data => {
                   if (data.success) {
+					  console.log(data.message);
                       loadLog(); // Reload the log after sorting
                   }
               })
@@ -151,7 +155,8 @@
                   console.error("Error sorting log:", error);
               });
         }
-
+        
+		console.log("Load log.")
         // Load the log when the page loads
         window.onload = loadLog;
     </script>
