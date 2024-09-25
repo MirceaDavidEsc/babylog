@@ -26,10 +26,13 @@ def update_log():
     try:
         # Get the new log content from the request
         new_log_content = request.json['log']
-
+        # Split the log content by lines and reverse the order
+        log_lines = new_log_content.splitlines()  # Split the content into lines
+        reversed_log_content = "\n".join(reversed(log_lines)) + "\n"  # Reverse the lines and join them back with newlines
+        
         # Overwrite log.txt with the new content
         with open('log.txt', 'w') as f:
-            f.write(new_log_content)
+            f.write(reversed_log_content)
 
         # Return success response
         return jsonify(success=True)
