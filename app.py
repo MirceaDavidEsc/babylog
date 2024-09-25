@@ -45,7 +45,6 @@ def get_log():
     except FileNotFoundError:
         return jsonify(log_entries=[])
         
-#test
 # Route to update log.txt with new content
 @app.route('/update_log', methods=['POST'])
 def update_log():
@@ -87,8 +86,6 @@ def add_activity():
 
 
 # Route to sort the log entries by timestamp and overwrite log.txt
-# Sorting log testing comment
-
 @app.route('/sort_log', methods=['POST'])
 def sort_log():
     try:
@@ -106,6 +103,62 @@ def sort_log():
         return jsonify(success=True, message="Log sorted successfully")
     except Exception as e:
         return jsonify(success=False, error=str(e))
+
+# Helper function to load log and archive data
+def load_log_data():
+    log_file = 'log.txt'
+    archive_file = 'archive.txt'
+    data = []
+
+    # Load log.txt data
+    with open(log_file, 'r') as f:
+        data += f.readlines()
+
+    # Load archive.txt data
+    with open(archive_file, 'r') as f:
+        data += f.readlines()
+
+    return data
+
+# Helper function to filter diaper entries for today
+def filter_diapers_for_today(data):
+    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+    wet_count = 0
+    dirty_count = 0
+
+    for entry in data:
+        # Only process entries with "diaper"
+        if "diaper" in entry:
+            timestamp, activity, notes = entry.split(",", 2)  # Split the entry into components
+            
+            # Check if the timestamp is from today
+            if today in timestamp:
+                # Tally up wet and dirty diapers
+                if "wet" in activity or "mixed" in activity:
+                    wet_count += 1
+                if "poo" in activity or "mixed" in activity:
+                    dirty_count += 1
+
+    return wet_count, dirty_count
+
+
+
+
+# New route to fetch daily diaper totals
+@app.route('/get_daily_diaper_totals', methods=['GET'])
+def get_daily_diaper_totals():
+    # Load log data and archive data
+    log_data = load_log_data()
+
+    # Filter and count diapers for today
+    wet_count, dirty_count = filter_diapers_for_today(log_data)
+    print("Wet: " + str(wet_count) + " Dirty: " + str(dirty_count))
+    # Return the counts as JSON
+    return jsonify({
+        'wet': wet_count,
+        'dirty': dirty_count
+    })
+
 
 if __name__ == '__main__':
     app.run()

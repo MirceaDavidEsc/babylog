@@ -53,7 +53,7 @@
     <div id="stats-content" class="tab-content">
         <h2 class="stats-heading">Daily Totals</h2>
         <div class="stats-grid">
-            <div class="stat-box">Diapers</div>
+            <div class="stat-box" id="diaper-daily-box">Diapers: 0 Wet, 0 Dirty</div>
             <div class="stat-box">Nap Time</div>
             <div class="stat-box"># of Naps</div>
             <div class="stat-box">Feeding Sessions</div>
@@ -94,6 +94,9 @@
                 // Change the button text and style
                 toggleButton.textContent = 'Show Log';
                 toggleButton.classList.add('stats-view');
+                
+                // Load the diaper stats when showing the stats
+                loadDiaperStats();
             } else {
                 // Hide the stats and show the log
                 statsContent.classList.remove('active');
@@ -209,6 +212,22 @@
               .catch(error => {
                   console.error("Error sorting log:", error);
               });
+        }
+        
+        // Function to fetch diaper stats from the server and display them
+        function loadDiaperStats() {
+            fetch('/get_daily_diaper_totals')
+            .then(response => response.json())
+            .then(data => {
+                // Update the diaper stats box in the Daily Stats section
+                const diaperStatsBox = document.getElementById('diaper-daily-box');
+                console.log("Wet diapers:", data.wet)
+                console.log("Dirty diapers:", data.dirty)
+                diaperStatsBox.innerHTML = `Diapers: ${data.wet} Wet, ${data.dirty} Dirty`;
+            })
+            .catch(error => {
+                console.error('Error fetching diaper stats:', error);
+            });
         }
         
 		console.log("Load log.")
