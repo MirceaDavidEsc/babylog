@@ -9,45 +9,96 @@
 	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <h1>Lucia Baby Log Input</h1>
-    <div class="form-group">
-        <label for="time">Select Time: </label>
-        <input type="datetime-local" id="time" name="time">
-    </div>
-    <div class="form-group">
-       <select id="activity">
-			<option value="" disabled selected>CHOOSE ACTIVITY</option>
-			<option value="asleep">Asleep</option>
-			<option value="awake">Awake</option>
-			<option value="wet diaper">Wet Diaper</option>
-			<option value="poo diaper">Poo Diaper</option>
-			<option value="mixed diaper">Mixed Diaper</option>
-			<option value="playing">Playing</option>
-			<option value="feeding">Feeding</option>
-			<option value="bathing">Bathing</option> 
-		</select>
-    </div>
-    <div class="form-group">
-        <input type="text" id="notes" placeholder="Add a short note (e.g., 60mL)">
+    <button id="toggle-button" onclick="toggleView()">Show Stats</button>
+    
+    <div id="log-content" class="tab-content active">
+
+        <h1>Lucia Baby Log Input</h1>
+        <div class="form-group">
+            <label for="time">Select Time: </label>
+            <input type="datetime-local" id="time" name="time">
+        </div>
+        <div class="form-group">
+           <select id="activity">
+    			<option value="" disabled selected>CHOOSE ACTIVITY</option>
+    			<option value="asleep">Asleep</option>
+    			<option value="awake">Awake</option>
+    			<option value="wet diaper">Wet Diaper</option>
+    			<option value="poo diaper">Poo Diaper</option>
+    			<option value="mixed diaper">Mixed Diaper</option>
+    			<option value="playing">Playing</option>
+    			<option value="feeding">Feeding</option>
+    			<option value="bathing">Bathing</option> 
+    		</select>
+        </div>
+        <div class="form-group">
+            <input type="text" id="notes" placeholder="Add a short note (e.g., 60mL)">
+        </div>
+        
+        <!-- Button group with equal-sized buttons in one row -->
+        <div class="button-group">
+            <button onclick="addActivity()">Add Activity</button>
+            <button onclick="loadLog()">Refresh Log</button>
+            <button onclick="sortLog()">Sort Log</button>
+        </div>
+        <!-- New button to edit the log -->
+        <button id="edit-log-btn" class="edit-log-btn" onclick="toggleEditLog()">Edit Log</button>
+    
+        <!-- Log text -->
+        <div id="log"></div>
+    	<textarea id="log-textarea"></textarea>
     </div>
     
-    <!-- Button group with equal-sized buttons in one row -->
-    <div class="button-group">
-        <button onclick="addActivity()">Add Activity</button>
-        <button onclick="loadLog()">Refresh Log</button>
-        <button onclick="sortLog()">Sort Log</button>
+     <!-- Stats Content -->
+    <div id="stats-content" class="tab-content">
+        <h2 class="stats-heading">Daily Stats</h2>
+        <div class="stats-grid">
+            <div class="stat-box">Diapers</div>
+            <div class="stat-box">Nap Time</div>
+            <div class="stat-box"># of Naps</div>
+            <div class="stat-box">Feeding Sessions</div>
+            <div class="stat-box">Feeding Amounts</div>
+
+            <div class="stat-box">Diapers</div>
+            <div class="stat-box">Nap Time</div>
+            <div class="stat-box"># of Naps</div>
+            <div class="stat-box">Feeding Sessions</div>
+            <div class="stat-box">Feeding Amounts</div>
+
+            <div class="stat-box">Diapers</div>
+            <div class="stat-box">Nap Time</div>
+            <div class="stat-box"># of Naps</div>
+            <div class="stat-box">Feeding Sessions</div>
+            <div class="stat-box">Feeding Amounts</div>
+        </div>
     </div>
-    
-	<!-- New button to edit the log -->
-    <button id="edit-log-btn" class="edit-log-btn" onclick="toggleEditLog()">Edit Log</button>
-
-
-    <div id="log"></div>
-	<textarea id="log-textarea"></textarea>
-
 
     <script>
 		let isEditing = false; // Track editing state
+		
+		function toggleView() {
+            // Get the button and the two content areas
+            const toggleButton = document.getElementById('toggle-button');
+            const logContent = document.getElementById('log-content');
+            const statsContent = document.getElementById('stats-content');
+
+            // Check which view is currently active and toggle
+            if (logContent.classList.contains('active')) {
+                // Hide the log and show the stats
+                logContent.classList.remove('active');
+                statsContent.classList.add('active');
+                // Change the button text and style
+                toggleButton.textContent = 'Show Log';
+                toggleButton.classList.add('stats-view');
+            } else {
+                // Hide the stats and show the log
+                statsContent.classList.remove('active');
+                logContent.classList.add('active');
+                // Change the button text and style
+                toggleButton.textContent = 'Show Stats';
+                toggleButton.classList.remove('stats-view');
+            }
+        }
 
         // Function to toggle between viewing and editing the log
         function toggleEditLog() {
