@@ -158,7 +158,7 @@ HTML and Java
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
-    grid-template-rows: repeat(3, 150px);
+    grid-template-rows: repeat(1, 150px);
     gap: 10px;
     margin: 20px auto;
     width: 90%;
