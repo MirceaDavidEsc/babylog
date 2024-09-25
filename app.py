@@ -6,7 +6,33 @@ app = Flask(__name__)
 # Route to render the main page
 @app.route('/')
 def index():
+    archive_log()  # Archive old log entries before rendering the main page
     return render_template('index.html')
+
+# Function to archive old log entries to archive.txt
+def archive_log():
+    log_file = 'log.txt'
+    archive_file = 'archive.txt'
+
+    with open(log_file, 'r') as f:
+        log_entries = f.readlines()  # Read all log entries from log.txt
+
+    # If there are more than 100 entries, we need to archive the older ones
+    if len(log_entries) > 100:
+        recent_entries = log_entries[-100:]  # Keep the most recent 100 entries
+        older_entries = log_entries[:-100]   # Get all older entries
+
+        # Overwrite log.txt with the most recent 100 entries
+        with open(log_file, 'w') as f:
+            f.writelines(recent_entries)
+
+        # Append older entries to archive.txt
+        with open(archive_file, 'a') as f:
+            f.writelines(older_entries)
+
+        print(f"Archived {len(older_entries)} rows to {archive_file}.")
+    else:
+        print(f"No need to archive. {len(log_entries)} rows in log.txt.")
 
 # Route to fetch the log contents and return them in reverse order
 @app.route('/get_log', methods=['GET'])
