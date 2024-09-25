@@ -157,8 +157,9 @@ HTML and Java
 /* Stats grid */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    grid-template-rows: repeat(1, 150px);
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 150px);
+    justify-content: center;
     gap: 10px;
     margin: 20px auto;
     width: 90%;
@@ -172,7 +173,7 @@ HTML and Java
     justify-content: center;
     align-items: center;
     flex-direction: column;
-    padding: 20px;
+    padding: 10px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
     font-size: 20px;
 }

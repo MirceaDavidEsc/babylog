@@ -223,7 +223,7 @@
                 const diaperStatsBox = document.getElementById('diaper-daily-box');
                 console.log("Wet diapers:", data.wet)
                 console.log("Dirty diapers:", data.dirty)
-                diaperStatsBox.innerHTML = `Diapers: ${data.wet} Wet, ${data.dirty} Dirty`;
+                diaperStatsBox.innerHTML = `<strong>Diapers:</strong><br> Wet: ${data.wet} <br> Dirty: ${data.dirty}`;
             })
             .catch(error => {
                 console.error('Error fetching diaper stats:', error);
