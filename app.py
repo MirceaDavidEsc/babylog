@@ -223,5 +223,41 @@ def get_nap_count():
     })
 
 
+# Helper function to calculate total nap time for today
+def calculate_total_nap_time():
+    data = load_log_data(withArchive=False)  # Only load log.txt data
+    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+    total_nap_time = 0
+    last_awake_time = None  # Track the last "awake" time
+
+    # Iterate over the log entries
+    for entry in data:
+        if "awake" in entry:
+            timestamp_str, activity, notes = entry.split(",", 2)
+            if today in timestamp_str:
+                last_awake_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
+        elif "asleep" in entry and last_awake_time:
+            timestamp_str, activity, notes = entry.split(",", 2)
+            if today in timestamp_str:
+                asleep_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
+                # Calculate the nap time and add to total
+                nap_duration = (asleep_time - last_awake_time).total_seconds() // 60  # In minutes
+                total_nap_time += int(nap_duration)
+                last_awake_time = None  # Reset after counting the nap
+
+    return total_nap_time
+
+# New route to fetch total nap time for today
+@app.route('/get_total_nap_time', methods=['GET'])
+def get_total_nap_time():
+    total_nap_time = calculate_total_nap_time()
+
+    # Return the total nap time as JSON
+    return jsonify({
+        'total_nap_time': total_nap_time
+    })
+
+
+
 if __name__ == '__main__':
     app.run()
