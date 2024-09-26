@@ -1,5 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
+import os
+
 
 app = Flask(__name__)
 
@@ -105,18 +107,19 @@ def sort_log():
         return jsonify(success=False, error=str(e))
 
 # Helper function to load log and archive data
-def load_log_data():
-    log_file = 'log.txt'
-    archive_file = 'archive.txt'
+def load_log_data(withArchive = False):
     data = []
+    log_file = 'log.txt'
 
     # Load log.txt data
     with open(log_file, 'r') as f:
         data += f.readlines()
 
     # Load archive.txt data
-    with open(archive_file, 'r') as f:
-        data += f.readlines()
+    if (withArchive):
+        archive_file = 'archive.txt'
+        with open(archive_file, 'r') as f:
+            data += f.readlines()
 
     return data
 
@@ -143,12 +146,11 @@ def filter_diapers_for_today(data):
 
 
 
-
 # New route to fetch daily diaper totals
 @app.route('/get_daily_diaper_totals', methods=['GET'])
 def get_daily_diaper_totals():
     # Load log data and archive data
-    log_data = load_log_data()
+    log_data = load_log_data(False)
 
     # Filter and count diapers for today
     wet_count, dirty_count = filter_diapers_for_today(log_data)
@@ -158,6 +160,43 @@ def get_daily_diaper_totals():
         'wet': wet_count,
         'dirty': dirty_count
     })
+
+
+# Helper function to find the most recent "awake" entry
+def time_since_last_nap(data):
+    now = datetime.now()
+    print(data)
+    # Iterate over the log data in reverse order to find the most recent "awake" entry
+    for entry in reversed(data):
+        print(entry)
+        if "awake" in entry:
+            timestamp_str, activity, notes = entry.split(",", 2)  # Split the entry into components
+            timestamp = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
+            time_elapsed = (now - timestamp).total_seconds() // 60  # Convert to minutes
+            return int(time_elapsed)
+
+    # If no "awake" entry is found, return None
+    return None
+
+
+# New route to fetch the time since the last nap
+@app.route('/get_time_since_last_nap', methods=['GET'])
+def get_time_since_last_nap():
+    # Load log data and archive data
+    log_data = load_log_data(False)
+
+    # Find the time since the last "awake" entry
+    minutes_since_last_nap = time_since_last_nap(log_data)
+
+    # Return the result as JSON
+    if minutes_since_last_nap is not None:
+        return jsonify({
+            'time_since_nap': minutes_since_last_nap
+        })
+    else:
+        return jsonify({
+            'time_since_nap': "No nap found"
+        })
 
 
 if __name__ == '__main__':
