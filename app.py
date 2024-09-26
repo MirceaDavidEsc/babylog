@@ -110,16 +110,16 @@ def sort_log():
 def load_log_data(withArchive = False):
     data = []
     log_file = 'log.txt'
-
-    # Load log.txt data
-    with open(log_file, 'r') as f:
-        data += f.readlines()
-
-    # Load archive.txt data
+    
+    # Load archive.txt data, load it first to keep time stamps in order
     if (withArchive):
         archive_file = 'archive.txt'
         with open(archive_file, 'r') as f:
             data += f.readlines()
+
+    # Load log.txt data
+    with open(log_file, 'r') as f:
+        data += f.readlines()
 
     return data
 
@@ -165,7 +165,6 @@ def get_daily_diaper_totals():
 # Helper function to find the most recent "awake" entry
 def time_since_last_nap(data):
     now = datetime.now()
-    print(data)
     # Iterate over the log data in reverse order to find the most recent "awake" entry
     for entry in reversed(data):
         print(entry)
@@ -197,6 +196,31 @@ def get_time_since_last_nap():
         return jsonify({
             'time_since_nap': "No nap found"
         })
+
+# Helper function to count naps for today
+def count_naps_today():
+    data = load_log_data(withArchive=False)  # Load only log.txt data
+    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+    nap_count = 0
+
+    # Iterate through the log and count "asleep" entries for today
+    for entry in data:
+        if "asleep" in entry:
+            timestamp_str, activity, notes = entry.split(",", 2)
+            if today in timestamp_str:
+                nap_count += 1
+
+    return nap_count
+
+# New route to fetch the number of naps for today
+@app.route('/get_nap_count', methods=['GET'])
+def get_nap_count():
+    nap_count = count_naps_today()
+
+    # Return the nap count as JSON
+    return jsonify({
+        'nap_count': nap_count
+    })
 
 
 if __name__ == '__main__':
