@@ -229,6 +229,7 @@ def calculate_total_nap_time():
     today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
     total_nap_time = 0
     last_awake_time = None  # Track the last "awake" time
+    last_asleep_time = None  # Track the last "asleep" time in case the last entry is asleep
 
     # Iterate over the log entries
     for entry in data:
@@ -236,6 +237,8 @@ def calculate_total_nap_time():
             timestamp_str, activity, notes = entry.split(",", 2)
             if today in timestamp_str:
                 last_awake_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
+                last_asleep_time = None  # Reset asleep time when awake is encountered
+
         elif "asleep" in entry and last_awake_time:
             timestamp_str, activity, notes = entry.split(",", 2)
             if today in timestamp_str:
@@ -243,9 +246,17 @@ def calculate_total_nap_time():
                 # Calculate the nap time and add to total
                 nap_duration = (asleep_time - last_awake_time).total_seconds() // 60  # In minutes
                 total_nap_time += int(nap_duration)
-                last_awake_time = None  # Reset after counting the nap
+                last_awake_time = None  # Reset awake time after counting the nap
+                last_asleep_time = asleep_time  # Track the last asleep time
+
+    # Special condition: if the last entry is "asleep", add nap time from "asleep" to now
+    if last_asleep_time:
+        now = datetime.now()
+        nap_duration = (now - last_asleep_time).total_seconds() // 60  # In minutes
+        total_nap_time += int(nap_duration)
 
     return total_nap_time
+
 
 # New route to fetch total nap time for today
 @app.route('/get_total_nap_time', methods=['GET'])
