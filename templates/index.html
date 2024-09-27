@@ -17,6 +17,7 @@
         <div class="form-group">
             <label for="time">Select Time: </label>
             <input type="datetime-local" id="time" name="time">
+            <button type="button" id="now-button" onclick="setTimeToNow()">Now</button>
         </div>
         <div class="form-group">
            <select id="activity">
@@ -107,6 +108,25 @@
                 toggleButton.textContent = 'Show Stats';
                 toggleButton.classList.remove('stats-view');
             }
+        }
+        
+        // Function to set the current date and time to the time input field in EST
+        function setTimeToNow() {
+            // Get the current UTC date and time
+            const now = new Date();
+        
+            // Determine if it's daylight saving time (EDT) or standard time (EST)
+            const isDaylightSaving = now.getMonth() > 2 && now.getMonth() < 10;  // Approximation: April to October is EDT
+            const estOffset = isDaylightSaving ? -4 : -5;  // EDT is UTC-4, EST is UTC-5
+        
+            // Adjust the UTC time to EST/EDT by subtracting the EST/EDT offset
+            const estTime = new Date(now.getTime() + estOffset * 60 * 60 * 1000);
+        
+            // Format the date and time as YYYY-MM-DDTHH:mm for the input type="datetime-local"
+            const formattedDate = estTime.toISOString().slice(0, 16);
+        
+            // Set the value of the time input field
+            document.getElementById('time').value = formattedDate;
         }
 
         // Function to toggle between viewing and editing the log

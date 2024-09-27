@@ -92,6 +92,19 @@ HTML and Java
     background-color: #45a049;
 }
 
+/*Now button*/
+#now-button {
+    margin-left: 10px;
+    padding: 5px 10px;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+#time-selector {
+    font-size: 16px;
+    padding: 5px;
+}
+
 /* Button to toggle between Log and Stats */
 #toggle-button {
     width: 100%;
