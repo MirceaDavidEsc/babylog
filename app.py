@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 import os
+import re
 
 
 app = Flask(__name__)
@@ -165,6 +166,11 @@ def get_daily_diaper_totals():
 # Helper function to find the most recent "awake" entry
 def time_since_last_nap(data):
     now = datetime.now()
+    
+    # If the latest entry was "asleep", baby is still asleep, so return 0
+    if data and "asleep" in data[-1]: 
+        return 0
+    
     # Iterate over the log data in reverse order to find the most recent "awake" entry
     for entry in reversed(data):
         print(entry)
@@ -268,6 +274,61 @@ def get_total_nap_time():
         'total_nap_time': total_nap_time
     })
 
+
+# Helper function to count feedings for today
+def feedingCountToday():
+    data = load_log_data(withArchive=False)  # Load only log.txt data
+    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+    feeding_count = 0
+
+    # Iterate through the log and count "feeding" entries for today
+    for entry in data:
+        if "feeding" in entry:
+            timestamp_str, activity, notes = entry.split(",", 2)
+            if today in timestamp_str:
+                feeding_count += 1
+
+    return feeding_count
+
+# New route to get the number of feedings for today
+@app.route('/get_feeding_count', methods=['GET'])
+def get_feeding_count():
+    feeding_count = feedingCountToday()
+
+    # Return the feeding count as JSON
+    return jsonify({
+        'feeding_count': feeding_count
+    })
+
+# Helper function to calculate total feeding amount for today
+def feedingAmountToday():
+    data = load_log_data(withArchive=False)  # Load only log.txt data
+    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+    total_amount = 0
+
+    # Regular expression to match "mL" in a case-insensitive way
+    ml_pattern = re.compile(r'(\d+)\s*mL', re.IGNORECASE)
+
+    # Iterate through the log and find feeding amounts for today
+    for entry in data:
+        timestamp_str, activity, notes = entry.split(",", 2)
+        if today in timestamp_str:
+            # Search for "mL" in the comments/notes and extract the amount
+            match = ml_pattern.search(notes)
+            if match:
+                total_amount += int(match.group(1))  # Sum the numeric values
+
+    return total_amount
+
+# New route to get the total feeding amount for today
+@app.route('/get_feeding_amount', methods=['GET'])
+def get_feeding_amount():
+    feeding_amount = feedingAmountToday()
+
+    # Return the total feeding amount as JSON
+    return jsonify({
+        'feeding_amount': feeding_amount
+    })
 
 
 if __name__ == '__main__':

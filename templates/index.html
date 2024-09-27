@@ -57,7 +57,8 @@
             <div class="stat-box" id="nap-stats-box">Time since nap:<br> No nap found</div>
             <div class="stat-box" id="nap-count-box"><strong># of naps:</strong><br>No naps found</div>
             <div class="stat-box" id="nap-time-box"><strong>Total nap time:</strong><br>No naps found</div>
-            <div class="stat-box">Feeding Amounts</div>
+            <div class="stat-box" id="feeding-count-box"># of Feedings: No data</div>
+            <div class="stat-box" id="feeding-amount-box">Feeding amount: x mL</div>
         </div>
         <h2 class="stats-heading">Weekly Average</h2>
         <div class="stats-grid">
@@ -100,6 +101,8 @@
                 timeSinceNap();
                 getNapCount();
                 getTodayNapTimeTotal();
+                getFeedingCount();
+                getFeedingAmount(); 
             } else {
                 // Hide the stats and show the log
                 statsContent.classList.remove('active');
@@ -275,6 +278,34 @@
             })
             .catch(error => {
                 console.error('Error fetching total nap time:', error);
+            });
+        }
+        
+        // Function to fetch feeding count from the server and display it
+        function getFeedingCount() {
+            fetch('/get_feeding_count')
+            .then(response => response.json())
+            .then(data => {
+                // Update the feeding count box in the Daily Stats section
+                const feedingCountBox = document.getElementById('feeding-count-box');
+                feedingCountBox.innerHTML = `<strong># of Feedings:</strong><br>${data.feeding_count}`;
+            })
+            .catch(error => {
+                console.error('Error fetching feeding count:', error);
+            });
+        }
+    
+        // Function to fetch total feeding amount from the server and display it
+        function getFeedingAmount() {
+            fetch('/get_feeding_amount')
+            .then(response => response.json())
+            .then(data => {
+                // Update the feeding amount box in the Daily Stats section
+                const feedingAmountBox = document.getElementById('feeding-amount-box');
+                feedingAmountBox.innerHTML = `<strong>Feeding amount:</strong><br>${data.feeding_amount} mL`;
+            })
+            .catch(error => {
+                console.error('Error fetching feeding amount:', error);
             });
         }
         
