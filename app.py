@@ -134,7 +134,7 @@ def diaper_stats(data):
         if "diaper" in entry and today in entry:
             if "wet" in entry or "mixed" in entry:
                 wet_count += 1
-            if "Poo" in entry or "mixed" in entry:
+            if "poo" in entry or "mixed" in entry:
                 dirty_count += 1
                 
     return wet_count, dirty_count
