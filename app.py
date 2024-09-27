@@ -124,212 +124,119 @@ def load_log_data(withArchive = False):
 
     return data
 
-# Helper function to filter diaper entries for today
-def filter_diapers_for_today(data):
-    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+# Helper function to count diapers (wet and dirty)
+def diaper_stats(data):
     wet_count = 0
     dirty_count = 0
-
+    today = datetime.now().strftime('%Y-%m-%d')
+    
     for entry in data:
-        # Only process entries with "diaper"
-        if "diaper" in entry:
-            timestamp, activity, notes = entry.split(",", 2)  # Split the entry into components
-            
-            # Check if the timestamp is from today
-            if today in timestamp:
-                # Tally up wet and dirty diapers
-                if "wet" in activity or "mixed" in activity:
-                    wet_count += 1
-                if "poo" in activity or "mixed" in activity:
-                    dirty_count += 1
-
+        if "diaper" in entry and today in entry:
+            if "wet" in entry or "mixed" in entry:
+                wet_count += 1
+            if "Poo" in entry or "mixed" in entry:
+                dirty_count += 1
+                
     return wet_count, dirty_count
 
-
-
-# New route to fetch daily diaper totals
-@app.route('/get_daily_diaper_totals', methods=['GET'])
-def get_daily_diaper_totals():
-    # Load log data and archive data
-    log_data = load_log_data(False)
-
-    # Filter and count diapers for today
-    wet_count, dirty_count = filter_diapers_for_today(log_data)
-    print("Wet: " + str(wet_count) + " Dirty: " + str(dirty_count))
-    # Return the counts as JSON
-    return jsonify({
-        'wet': wet_count,
-        'dirty': dirty_count
-    })
-
-
-# Helper function to find the most recent "awake" entry
+# Helper function to find time since last nap
 def time_since_last_nap(data):
     now = datetime.now()
     
-    # If the latest entry was "asleep", baby is still asleep, so return 0
-    if data and "asleep" in data[-1]: 
+    if data and "asleep" in data[-1]:
         return 0
-    
-    # Iterate over the log data in reverse order to find the most recent "awake" entry
+
     for entry in reversed(data):
-        print(entry)
         if "awake" in entry:
-            timestamp_str, activity, notes = entry.split(",", 2)  # Split the entry into components
+            timestamp_str, activity, notes = entry.split(",", 2)
             timestamp = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
-            time_elapsed = (now - timestamp).total_seconds() // 60  # Convert to minutes
+            time_elapsed = (now - timestamp).total_seconds() // 60
             return int(time_elapsed)
 
-    # If no "awake" entry is found, return None
     return None
 
-
-# New route to fetch the time since the last nap
-@app.route('/get_time_since_last_nap', methods=['GET'])
-def get_time_since_last_nap():
-    # Load log data and archive data
-    log_data = load_log_data(False)
-
-    # Find the time since the last "awake" entry
-    minutes_since_last_nap = time_since_last_nap(log_data)
-
-    # Return the result as JSON
-    if minutes_since_last_nap is not None:
-        return jsonify({
-            'time_since_nap': minutes_since_last_nap
-        })
-    else:
-        return jsonify({
-            'time_since_nap': "No nap found"
-        })
-
-# Helper function to count naps for today
-def count_naps_today():
-    data = load_log_data(withArchive=False)  # Load only log.txt data
-    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+# Helper function to count naps today
+def nap_count(data):
+    today = datetime.now().strftime('%Y-%m-%d')
     nap_count = 0
-
-    # Iterate through the log and count "asleep" entries for today
+    
     for entry in data:
-        if "asleep" in entry:
-            timestamp_str, activity, notes = entry.split(",", 2)
-            if today in timestamp_str:
-                nap_count += 1
-
+        if "asleep" in entry and today in entry:
+            nap_count += 1
+    
     return nap_count
 
-# New route to fetch the number of naps for today
-@app.route('/get_nap_count', methods=['GET'])
-def get_nap_count():
-    nap_count = count_naps_today()
-
-    # Return the nap count as JSON
-    return jsonify({
-        'nap_count': nap_count
-    })
-
-
-# Helper function to calculate total nap time for today
-def calculate_total_nap_time():
-    data = load_log_data(withArchive=False)  # Only load log.txt data
-    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+# Helper function to calculate total nap time today
+def total_nap_time(data):
+    today = datetime.now().strftime('%Y-%m-%d')
     total_nap_time = 0
-    last_awake_time = None  # Track the last "awake" time
-    last_asleep_time = None  # Track the last "asleep" time in case the last entry is asleep
+    last_awake_time = None
 
-    # Iterate over the log entries
     for entry in data:
         if "awake" in entry:
             timestamp_str, activity, notes = entry.split(",", 2)
             if today in timestamp_str:
                 last_awake_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
-                last_asleep_time = None  # Reset asleep time when awake is encountered
-
         elif "asleep" in entry and last_awake_time:
             timestamp_str, activity, notes = entry.split(",", 2)
             if today in timestamp_str:
                 asleep_time = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
-                # Calculate the nap time and add to total
-                nap_duration = (asleep_time - last_awake_time).total_seconds() // 60  # In minutes
+                nap_duration = (asleep_time - last_awake_time).total_seconds() // 60
                 total_nap_time += int(nap_duration)
-                last_awake_time = None  # Reset awake time after counting the nap
-                last_asleep_time = asleep_time  # Track the last asleep time
+                last_awake_time = None
 
-    # Special condition: if the last entry is "asleep", add nap time from "asleep" to now
-    if last_asleep_time:
-        now = datetime.now()
-        nap_duration = (now - last_asleep_time).total_seconds() // 60  # In minutes
-        total_nap_time += int(nap_duration)
-
+    if last_awake_time:  # If the last entry is "asleep"
+        total_nap_time += (datetime.now() - last_awake_time).total_seconds() // 60
+    
     return total_nap_time
 
-
-# New route to fetch total nap time for today
-@app.route('/get_total_nap_time', methods=['GET'])
-def get_total_nap_time():
-    total_nap_time = calculate_total_nap_time()
-
-    # Return the total nap time as JSON
-    return jsonify({
-        'total_nap_time': total_nap_time
-    })
-
-
-# Helper function to count feedings for today
-def feedingCountToday():
-    data = load_log_data(withArchive=False)  # Load only log.txt data
-    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
-    feeding_count = 0
-
-    # Iterate through the log and count "feeding" entries for today
+# Helper function to count feedings today
+def feeding_count(data):
+    today = datetime.now().strftime('%Y-%m-%d')
+    count = 0
+    
     for entry in data:
-        if "feeding" in entry:
-            timestamp_str, activity, notes = entry.split(",", 2)
-            if today in timestamp_str:
-                feeding_count += 1
+        if "feeding" in entry and today in entry:
+            count += 1
+    
+    return count
 
-    return feeding_count
-
-# New route to get the number of feedings for today
-@app.route('/get_feeding_count', methods=['GET'])
-def get_feeding_count():
-    feeding_count = feedingCountToday()
-
-    # Return the feeding count as JSON
-    return jsonify({
-        'feeding_count': feeding_count
-    })
-
-# Helper function to calculate total feeding amount for today
-def feedingAmountToday():
-    data = load_log_data(withArchive=False)  # Load only log.txt data
-    today = datetime.now().strftime('%Y-%m-%d')  # Get today's date in YYYY-MM-DD format
+# Helper function to calculate total feeding amount today
+def feeding_amount(data):
+    today = datetime.now().strftime('%Y-%m-%d')
     total_amount = 0
-
-    # Regular expression to match "mL" in a case-insensitive way
     ml_pattern = re.compile(r'(\d+)\s*mL', re.IGNORECASE)
 
-    # Iterate through the log and find feeding amounts for today
     for entry in data:
-        timestamp_str, activity, notes = entry.split(",", 2)
-        if today in timestamp_str:
-            # Search for "mL" in the comments/notes and extract the amount
-            match = ml_pattern.search(notes)
+        if today in entry:
+            match = ml_pattern.search(entry.split(",")[2])  # Searching in the notes section
             if match:
-                total_amount += int(match.group(1))  # Sum the numeric values
+                total_amount += int(match.group(1))
 
     return total_amount
 
-# New route to get the total feeding amount for today
-@app.route('/get_feeding_amount', methods=['GET'])
-def get_feeding_amount():
-    feeding_amount = feedingAmountToday()
+# Master function to load daily stats
+@app.route('/load_daily_stats', methods=['GET'])
+def load_daily_stats():
+    data = load_log_data()  # Load log data once
 
-    # Return the total feeding amount as JSON
+    wet_count, dirty_count = diaper_stats(data)
+    time_since_nap = time_since_last_nap(data)
+    nap_count_today = nap_count(data)
+    total_nap_time_today = total_nap_time(data)
+    feeding_count_today = feeding_count(data)
+    total_feeding_amount = feeding_amount(data)
+    print([wet_count, dirty_count, time_since_nap, nap_count_today, total_nap_time_today, feeding_count_today, total_feeding_amount])
+    # Return all stats in one JSON response
     return jsonify({
-        'feeding_amount': feeding_amount
+        'wet_count': wet_count,
+        'dirty_count': dirty_count,
+        'time_since_nap': time_since_nap,
+        'nap_count': nap_count_today,
+        'total_nap_time': total_nap_time_today,
+        'feeding_count': feeding_count_today,
+        'total_feeding_amount': total_feeding_amount
     })
-
 
 if __name__ == '__main__':
     app.run()

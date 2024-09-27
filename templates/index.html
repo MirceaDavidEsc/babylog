@@ -53,12 +53,12 @@
     <div id="stats-content" class="tab-content">
         <h2 class="stats-heading">Daily Totals</h2>
         <div class="stats-grid">
-            <div class="stat-box" id="diaper-daily-box">Diapers: 0 Wet, 0 Dirty</div>
-            <div class="stat-box" id="nap-stats-box">Time since nap:<br> No nap found</div>
-            <div class="stat-box" id="nap-count-box"><strong># of naps:</strong><br>No naps found</div>
-            <div class="stat-box" id="nap-time-box"><strong>Total nap time:</strong><br>No naps found</div>
-            <div class="stat-box" id="feeding-count-box"># of Feedings: No data</div>
-            <div class="stat-box" id="feeding-amount-box">Feeding amount: x mL</div>
+            <div class="stat-box" id="diaper-stats-box">No data</div>
+            <div class="stat-box" id="nap-stats-box">No data</div>
+            <div class="stat-box" id="nap-count-box">No data</div>
+            <div class="stat-box" id="nap-time-box">No data</div>
+            <div class="stat-box" id="feeding-count-box">No data</div>
+            <div class="stat-box" id="feeding-amount-box">No data</div>
         </div>
         <h2 class="stats-heading">Weekly Average</h2>
         <div class="stats-grid">
@@ -97,12 +97,8 @@
                 toggleButton.classList.add('stats-view');
                 
                 // Calculate stats
-                loadDiaperStats();
-                timeSinceNap();
-                getNapCount();
-                getTodayNapTimeTotal();
-                getFeedingCount();
-                getFeedingAmount(); 
+                // Load all stats using the single function
+                loadDailyStats();
             } else {
                 // Hide the stats and show the log
                 statsContent.classList.remove('active');
@@ -220,94 +216,23 @@
               });
         }
         
-        // Function to fetch diaper stats from the server and display them
-        function loadDiaperStats() {
-            fetch('/get_daily_diaper_totals')
-            .then(response => response.json())
-            .then(data => {
-                // Update the diaper stats box in the Daily Stats section
-                const diaperStatsBox = document.getElementById('diaper-daily-box');
-                console.log("Wet diapers:", data.wet)
-                console.log("Dirty diapers:", data.dirty)
-                diaperStatsBox.innerHTML = `<strong>Diapers:</strong><br> Wet: ${data.wet} <br> Dirty: ${data.dirty}`;
-            })
-            .catch(error => {
-                console.error('Error fetching diaper stats:', error);
-            });
-        }
-        
-        // Function to fetch time since last nap and display it
-        function timeSinceNap() {
-            fetch('/get_time_since_last_nap')
-            .then(response => response.json())
-            .then(data => {
-                // Update the time since nap box in the Daily Stats section
-                const napStatsBox = document.getElementById('nap-stats-box');
-                if (data.time_since_nap !== "No nap found") {
-                    napStatsBox.innerHTML = `<strong>Time since nap:</strong><br> ${data.time_since_nap} min`;
-                } else {
-                    napStatsBox.innerHTML = `Time since nap:<br> No nap found`;
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching time since last nap:', error);
-            });
-        }
-        
-         // Function to fetch nap count from the server and display it
-        function getNapCount() {
-            fetch('/get_nap_count')
-            .then(response => response.json())
-            .then(data => {
-                // Update the nap count box in the Daily Stats section
-                const napCountBox = document.getElementById('nap-count-box');
-                napCountBox.innerHTML = `<strong># of naps:</strong><br>${data.nap_count}`;
-            })
-            .catch(error => {
-                console.error('Error fetching nap count:', error);
-            });
-        }
-        
-        function getTodayNapTimeTotal() {
-            fetch('/get_total_nap_time')
-            .then(response => response.json())
-            .then(data => {
-                // Update the nap time box in the Daily Stats section
-                const napTimeBox = document.getElementById('nap-time-box');
-                napTimeBox.innerHTML = `<strong>Total nap time:</strong><br>${data.total_nap_time} min`;
-            })
-            .catch(error => {
-                console.error('Error fetching total nap time:', error);
-            });
-        }
-        
-        // Function to fetch feeding count from the server and display it
-        function getFeedingCount() {
-            fetch('/get_feeding_count')
-            .then(response => response.json())
-            .then(data => {
-                // Update the feeding count box in the Daily Stats section
-                const feedingCountBox = document.getElementById('feeding-count-box');
-                feedingCountBox.innerHTML = `<strong># of Feedings:</strong><br>${data.feeding_count}`;
-            })
-            .catch(error => {
-                console.error('Error fetching feeding count:', error);
-            });
-        }
-    
-        // Function to fetch total feeding amount from the server and display it
-        function getFeedingAmount() {
-            fetch('/get_feeding_amount')
-            .then(response => response.json())
-            .then(data => {
-                // Update the feeding amount box in the Daily Stats section
-                const feedingAmountBox = document.getElementById('feeding-amount-box');
-                feedingAmountBox.innerHTML = `<strong>Feeding amount:</strong><br>${data.feeding_amount} mL`;
-            })
-            .catch(error => {
-                console.error('Error fetching feeding amount:', error);
-            });
-        }
+        // Function to fetch daily stats and update the stats boxes
+    function loadDailyStats() {
+        fetch('/load_daily_stats')
+        .then(response => response.json())
+        .then(data => {
+            // Update all the stats boxes with the results
+            document.getElementById('diaper-stats-box').innerHTML = `<strong>Diapers:</strong><br> ${data.wet_count} Wet<br> ${data.dirty_count} Dirty`;
+            document.getElementById('nap-stats-box').innerHTML = `<strong>Time since nap:</strong><br> ${data.time_since_nap} min`;
+            document.getElementById('nap-count-box').innerHTML = `<strong># of naps:</strong><br>${data.nap_count}`;
+            document.getElementById('nap-time-box').innerHTML = `<strong>Total nap time:</strong><br>${data.total_nap_time} min`;
+            document.getElementById('feeding-count-box').innerHTML = `<strong># of Feedings:</strong><br>${data.feeding_count}`;
+            document.getElementById('feeding-amount-box').innerHTML = `<strong>Feeding amount:</strong><br>${data.total_feeding_amount} mL`;
+        })
+        .catch(error => {
+            console.error('Error loading daily stats:', error);
+        });
+    }
         
 		console.log("Load log.")
         // Load the log when the page loads
