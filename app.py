@@ -139,11 +139,14 @@ def load_daily_stats():
     today_df_summary = today_df.loc[:,'dirty_diaper':'feeding_amt'].sum().to_frame(name='sum')
     
     # Calculate sleep statistics
-    today_sleep_durations = calculate_sleep_durations(today_df)
+    today_sleep_durations, still_sleeping = calculate_sleep_durations(today_df)
     today_sleep_summary = today_sleep_durations.loc[:,'sleep_duration'].sum()
-    time_since_nap = datetime.now() - today_sleep_durations.iloc[-1]['awake']
-    if (pd.isna(time_since_nap)):
+    
+    if still_sleeping:
         time_since_nap = 0
+    else:
+        time_diff = datetime.now().replace(second=0,microsecond=0) - today_sleep_durations.iloc[-1]['awake'] 
+        time_since_nap = time_diff.total_seconds() / 60
     
     # Return all stats in one JSON response
     return jsonify({
@@ -190,16 +193,21 @@ def calculate_sleep_durations(log_df):
         'awake': awake_df['timestamp']
     })
     
+    # there is an off-by-one error, need to shift aslep windows down
     if sleep_periods.loc[0,'asleep'] > sleep_periods.loc[0,'awake']:
-        sleep_periods = pd.concat([sleep_periods, pd.DataFrame({'asleep': [pd.NaT], 'awake': [pd.NaT]})], ignore_index=True)
+        if not pd.isna(sleep_periods.iloc[-1]['asleep']): # insert new row if needed
+           sleep_periods = pd.concat([sleep_periods, pd.DataFrame({'asleep': [pd.NaT], 'awake': [pd.NaT]})], ignore_index=True)
         sleep_periods['asleep'] = sleep_periods['asleep'].shift(1)
-
+     
+    if (pd.isna(sleep_periods.iloc[-1]['awake'])):
+        sleep_periods.at[sleep_periods.index[-1],'awake'] = datetime.now().replace(second=0,microsecond=0)
+        still_running = True
+    else:
+        still_running = False
     
     sleep_periods['sleep_duration'] = (sleep_periods['awake'] - sleep_periods['asleep']).dt.total_seconds() / 60
-    sleep_periods['long_sleep'] = sleep_periods['sleep_duration'] > 240
-    sleep_periods['overnight_sleep'] = sleep_periods['asleep'].dt.date != sleep_periods['awake'].dt.date
 
-    return sleep_periods
+    return [sleep_periods, still_running]
 
 
 def flag_anomaly_sleep(log_df, drop=False):
