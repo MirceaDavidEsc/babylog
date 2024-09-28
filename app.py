@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
-import os
 import re
+import pandas as pd
 
 
 app = Flask(__name__)
@@ -215,6 +215,10 @@ def feeding_amount(data):
 
     return total_amount
 
+def feeding_amount_df(notes):
+    match = re.search(r'(\d+)\s*mL', notes, re.IGNORECASE)
+    return int(match.group(1)) if match else 0
+
 # Master function to load daily stats
 @app.route('/load_daily_stats', methods=['GET'])
 def load_daily_stats():
@@ -237,6 +241,72 @@ def load_daily_stats():
         'feeding_count': feeding_count_today,
         'total_feeding_amount': total_feeding_amount
     })
+
+# Helper function to turn the log into a pandas dataframe
+def convert_log_to_df(log_data):
+    
+    rows = []
+    for entry in log_data:
+        timestamp_str, activity, notes = entry.split(",", 2)
+        timestamp = datetime.strptime(timestamp_str, '%Y-%m-%dT%H:%M')
+        rows.append([timestamp, activity.strip(), notes])
+            
+    log_df = pd.DataFrame(rows, columns=["timestamp", "activity", "notes"])
+    log_df['date'] = log_df['timestamp'].dt.date
+    log_df['dirty_diaper'] = log_df['activity'].apply(lambda x: 1 if x in ['poo diaper', 'mixed diaper'] else 0)
+    log_df['wet_diaper'] = log_df['activity'].apply(lambda x: 1 if x in ['wet diaper', 'mixed diaper'] else 0)
+    log_df['nap_flag'] = log_df['activity'].apply(lambda x: 1 if x == 'asleep' else 0)
+    log_df['feed_flag'] = log_df['activity'].apply(lambda x: 1 if x == 'feeding' else 0)
+    log_df['feeding_amt'] = log_df['notes'].apply(feeding_amount_df)
+
+    
+    return(log_df)
+
+
+def flag_anomaly_sleep(log_df, drop=False):
+    df = log_df.copy()
+    df['anomaly_sleep'] = False
+    df['next_activity'] = df['activity'].shift(-1)
+    df['prev_activity'] = df['activity'].shift(1)
+    condition_1 = (df['activity'] == 'asleep') & (df['next_activity'] != 'awake')
+    condition_2 = (df['activity'] == 'awake') & (df['prev_activity'] != 'asleep')
+
+    # Set anomaly_sleep to True where either condition is met
+    df.loc[condition_1 | condition_2, 'anomaly_sleep'] = True
+    # Drop the helper columns (next_activity and prev_activity)
+    df.drop(columns=['next_activity', 'prev_activity'], inplace=True)
+
+    # If drop=True, remove all rows where anomaly_sleep is True
+    if drop:
+        df = df[df['anomaly_sleep'] == False].copy()
+
+    return df
+
+def calculate_sleep_durations(log_df):
+    # Filter rows for "asleep" and "awake" activities
+    sleep_df = log_df[log_df['activity'].isin(['asleep', 'awake'])].copy()
+    sleep_df.sort_values(by='timestamp', inplace=True)
+    asleep_df = sleep_df[sleep_df['activity'] == 'asleep'].reset_index(drop=True)
+    awake_df = sleep_df[sleep_df['activity'] == 'awake'].reset_index(drop=True)
+
+    # Ensure that there is an equal number of "asleep" and "awake" entries (truncate if necessary)
+    min_length = min(len(asleep_df), len(awake_df))
+    asleep_df = asleep_df.head(min_length)
+    awake_df = awake_df.head(min_length)
+
+    # Create a new DataFrame with both asleep and awake times
+    sleep_periods = pd.DataFrame({
+        'asleep': asleep_df['timestamp'],
+        'awake': awake_df['timestamp']
+    })
+    
+    sleep_periods['sleep_duration'] = (sleep_periods['awake'] - sleep_periods['asleep']).dt.total_seconds() / 60
+    sleep_periods['long_sleep'] = sleep_periods['sleep_duration'] > 240
+    sleep_periods['overnight_sleep'] = sleep_periods['asleep'].dt.date != sleep_periods['awake'].dt.date
+
+    return sleep_periods
+
+
 
 if __name__ == '__main__':
     app.run()
