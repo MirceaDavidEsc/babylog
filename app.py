@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, render_template
 from datetime import datetime
 import re
+import os
 import pandas as pd
 
 
@@ -41,8 +42,7 @@ def archive_log(keep_length = 100):
 @app.route('/get_log', methods=['GET'])
 def get_log():
     try:
-        with open('log.txt', 'r') as f:
-            log_entries = f.readlines()
+        log_entries = load_log_data(False)
         log_entries.reverse()  # Reverse the order to show the latest entries first
         return jsonify(log_entries=log_entries)
     except FileNotFoundError:
@@ -111,10 +111,20 @@ def sort_log():
 def load_log_data(withArchive = False):
     data = []
     log_file = 'log.txt'
+    archive_file = 'archive.txt'
+    
+    # Step 1: Check if log.txt exists, if not, create an empty log.txt
+    if not os.path.exists(log_file):
+        print(f"{log_file} does not exist. Creating an empty {log_file}.")
+        open(log_file, 'w').close()  # Create an empty file
+    
+    # Step 2: Check if archive.txt exists (only if withArchive=True), if not, create an empty archive.txt
+    if withArchive and not os.path.exists(archive_file):
+        print(f"{archive_file} does not exist. Creating an empty {archive_file}.")
+        open(archive_file, 'w').close()  # Create an empty file
     
     # Load archive.txt data, load it first to keep time stamps in order
-    if (withArchive):
-        archive_file = 'archive.txt'
+    if (withArchive):    
         with open(archive_file, 'r') as f:
             data += f.readlines()
 
