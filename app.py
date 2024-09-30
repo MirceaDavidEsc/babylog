@@ -210,24 +210,37 @@ def calculate_sleep_durations(log_df):
     return [sleep_periods, still_running]
 
 
-def flag_anomaly_sleep(log_df, drop=False):
-    df = log_df.copy()
-    df['anomaly_sleep'] = False
-    df['next_activity'] = df['activity'].shift(-1)
-    df['prev_activity'] = df['activity'].shift(1)
-    condition_1 = (df['activity'] == 'asleep') & (df['next_activity'] != 'awake')
-    condition_2 = (df['activity'] == 'awake') & (df['prev_activity'] != 'asleep')
+def calculate_daily_summary():
+    # Step 1: Load all log data (including archive)
+    log_data = load_log_data(withArchive=True)
+    
+    # Step 2: Convert log data to a DataFrame (which already includes the necessary columns)
+    log_df = convert_log_to_df(log_data)
+    
+    # Step 3: Calculate sleep durations, get rid of overnight sleep
+    log_df_sleep = calculate_sleep_durations(log_df)[0]
+    log_df_sleep_filtered = log_df_sleep[log_df_sleep['asleep'].dt.date == log_df_sleep['awake'].dt.date]
+    log_df_sleep_filtered.loc[:,'date'] = log_df_sleep_filtered['asleep'].dt.date
+    
+    # Step 4: Group by date and summarize the required fields
+    log_summary = log_df.groupby('date').agg(
+        wet_diapers_sum=pd.NamedAgg(column='wet_diaper', aggfunc='sum'),
+        dirty_diapers_sum=pd.NamedAgg(column='dirty_diaper', aggfunc='sum'),
+        feed_cnt=pd.NamedAgg(column='feed_flag', aggfunc='sum'),
+        feed_amt_sum=pd.NamedAgg(column='feeding_amt', aggfunc='sum'),
+        nap_cnt=pd.NamedAgg(column='nap_flag', aggfunc='sum'),
+    ).reset_index()
 
-    # Set anomaly_sleep to True where either condition is met
-    df.loc[condition_1 | condition_2, 'anomaly_sleep'] = True
-    # Drop the helper columns (next_activity and prev_activity)
-    df.drop(columns=['next_activity', 'prev_activity'], inplace=True)
+    sleep_summary = log_df_sleep_filtered.groupby('date').agg(
+        naps_time_sum=pd.NamedAgg(column='sleep_duration', aggfunc='sum'),
+        naps_time_cnt=pd.NamedAgg(column='sleep_duration', aggfunc='size')
+    ).reset_index()
+    sleep_summary['naps_time_avg'] = sleep_summary['naps_time_sum'] / sleep_summary['naps_time_cnt']
+    
+    daily_summary = pd.merge(log_summary, sleep_summary, on='date', how='inner')
 
-    # If drop=True, remove all rows where anomaly_sleep is True
-    if drop:
-        df = df[df['anomaly_sleep'] == False].copy()
-
-    return df
+    # Return the final summary DataFrame
+    return daily_summary
 
 
 if __name__ == '__main__':

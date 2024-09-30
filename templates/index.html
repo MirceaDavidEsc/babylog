@@ -218,7 +218,7 @@
 			}).then(response => response.json())
 			  .then(data => {
 				  if (data.success) {
-					  document.getElementById('activity').selectedIndex = 0;
+					  document.getElementById('activity-selector').selectedIndex = 0;
 					  document.getElementById('notes').value = '';
 				  }
 			  })
