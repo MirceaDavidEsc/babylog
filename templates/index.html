@@ -20,7 +20,7 @@
             <button type="button" id="now-button" onclick="setTimeToNow()">Now</button>
         </div>
         <div class="form-group">
-           <select id="activity">
+           <select id="activity-selector">
     			<option value="" disabled selected>CHOOSE ACTIVITY</option>
     			<option value="asleep">Asleep</option>
     			<option value="awake">Awake</option>
@@ -38,7 +38,7 @@
         
         <!-- Button group with equal-sized buttons in one row -->
         <div class="button-group">
-            <button onclick="addActivity()">Add Activity</button>
+            <button id="add-activity" onclick="addActivity()">Add Activity</button>
             <button onclick="loadLog()">Refresh Log</button>
             <button onclick="sortLog()">Sort Log</button>
         </div>
@@ -54,10 +54,10 @@
     <div id="stats-content" class="tab-content">
         <h2 class="stats-heading">Daily Stats</h2>
         <div class="stats-grid">
-            <div class="stat-box" id="diaper-stats-box">No data</div>
             <div class="stat-box" id="nap-stats-box">No data</div>
             <div class="stat-box" id="nap-count-box">No data</div>
             <div class="stat-box" id="nap-time-box">No data</div>
+            <div class="stat-box" id="diaper-stats-box">No data</div>
             <div class="stat-box" id="feeding-count-box">No data</div>
             <div class="stat-box" id="feeding-amount-box">No data</div>
         </div>
@@ -81,6 +81,10 @@
 
     <script>
 		let isEditing = false; // Track editing state
+		let is_asleep = false;
+		
+		const activitySelector = document.getElementById('activity-selector');
+        const addActivityButton = document.getElementById('add-activity');
 		
 		function toggleView() {
             // Get the button and the two content areas
@@ -184,18 +188,26 @@
                 .then(data => {
                     const logElement = document.getElementById('log');
                     logElement.innerHTML = data.log_entries.map(entry => `<div>${entry}</div>`).join('');
+                    
+                    // Check if the first (most recent) log entry contains "asleep"
+                    if (data.log_entries.length > 0 && data.log_entries[0].includes('asleep')) {
+                        console.log("Last log entry contains 'asleep'. Restricting to 'awake' activity.");
+                        disableAllExceptAwake();  // Disable all activities except 'awake'
+                    } else {
+                        console.log("Last log entry does not contain 'asleep'. Enabling all activities.");
+                        enableAllOptions();  // Enable all activity options
+                    }
                 });
         };
          
         function addActivity() {
 			const time = document.getElementById('time').value;
-			const activity = document.getElementById('activity').value;
+			const activity = document.getElementById('activity-selector').value;
 			const notes = document.getElementById('notes').value;
 
 			console.log("Time:", time);
 			console.log("Activity:", activity);
 			console.log("Notes:", notes);
-
 
 			fetch('/add_activity', {
 				method: 'POST',
@@ -214,6 +226,24 @@
 				  console.error("Error adding activity:", error);
 			  });
 		}
+		
+		// Disable all activity options except "awake"
+        function disableAllExceptAwake() {
+            const options = activitySelector.options;
+            for (let i = 0; i < options.length; i++) {
+                if (options[i].value !== 'awake' && options[i].value !== 'choose_activity') {
+                    options[i].disabled = true;  // Disable all except "awake"
+                }
+            }
+        }
+
+        // Enable all activity options
+        function enableAllOptions() {
+            const options = activitySelector.options;
+            for (let i = 0; i < options.length; i++) {
+                options[i].disabled = false;  // Enable all options
+            }
+        }
 
 
         // New function to sort the log
