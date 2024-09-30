@@ -149,21 +149,27 @@ def load_daily_stats():
     today_df_summary = today_df.loc[:,'dirty_diaper':'feeding_amt'].sum().to_frame(name='sum')
     
     # Calculate sleep statistics
+    nap_count = today_df_summary.loc['nap_flag','sum']
     today_sleep_durations, still_sleeping = calculate_sleep_durations(today_df)
-    today_sleep_summary = today_sleep_durations.loc[:,'sleep_duration'].sum()
     
-    if still_sleeping:
+    if (today_sleep_durations is None):
+        today_sleep_summary = 0
         time_since_nap = 0
+        nap_count = 0
     else:
-        time_diff = datetime.now().replace(second=0,microsecond=0) - today_sleep_durations.iloc[-1]['awake'] 
-        time_since_nap = time_diff.total_seconds() / 60
+        today_sleep_summary = today_sleep_durations.loc[:,'sleep_duration'].sum()
+        if still_sleeping:
+            time_since_nap = 0
+        else:
+            time_diff = datetime.now().replace(second=0,microsecond=0) - today_sleep_durations.iloc[-1]['awake'] 
+            time_since_nap = time_diff.total_seconds() / 60
     
     # Return all stats in one JSON response
     return jsonify({
         'wet_count': str(today_df_summary.loc['wet_diaper','sum']),
         'dirty_count': str(today_df_summary.loc['dirty_diaper','sum']),
         'time_since_nap': str(time_since_nap),
-        'nap_count': str(today_df_summary.loc['nap_flag','sum']),
+        'nap_count': str(nap_count),
         'total_nap_time': str(today_sleep_summary),
         'feeding_count': str(today_df_summary.loc['feed_flag','sum']),
         'total_feeding_amount': str(today_df_summary.loc['feeding_amt','sum'])
@@ -186,7 +192,6 @@ def convert_log_to_df(log_data):
     log_df['feed_flag'] = log_df['activity'].apply(lambda x: 1 if x == 'feeding' else 0)
     log_df['feeding_amt'] = log_df['notes'].apply(feeding_amount_df)
 
-    
     return(log_df)
 
 
@@ -202,6 +207,9 @@ def calculate_sleep_durations(log_df):
         'asleep': asleep_df['timestamp'],
         'awake': awake_df['timestamp']
     })
+    
+    if len(sleep_periods) == 0:
+        return [None, False]
     
     # there is an off-by-one error, need to shift aslep windows down
     if sleep_periods.loc[0,'asleep'] > sleep_periods.loc[0,'awake']:
