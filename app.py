@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template, send_file
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import os
 import pandas as pd
@@ -270,11 +270,12 @@ def calculate_daily_summary():
 def plot_diaper_stats():
     # Step 1: Calculate the daily summary
     daily_summary_df = calculate_daily_summary()
+    daily_summary_df_recent = daily_summary_df[daily_summary_df['date'] >= datetime.now().date() - timedelta(days = 14)]
 
     # Step 2: Extract the necessary data for plotting
-    dates = daily_summary_df['date']
-    wet_diapers = daily_summary_df['wet_diapers_sum']
-    dirty_diapers = daily_summary_df['dirty_diapers_sum']
+    dates = pd.to_datetime(daily_summary_df_recent['date'])
+    wet_diapers = daily_summary_df_recent['wet_diapers_sum']
+    dirty_diapers = daily_summary_df_recent['dirty_diapers_sum']
     
     x = range(len(dates))  # Create numeric x-axis positions
     bar_width = 0.35
@@ -291,7 +292,7 @@ def plot_diaper_stats():
     ax.set_ylabel('Diaper Count')
     ax.set_title('Daily Diaper Usage')
     ax.set_xticks([p + bar_width / 2 for p in x])
-    ax.set_xticklabels(dates, rotation=90)
+    ax.set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
     ax.legend()
 
     # Rotate the x-axis labels for better readability
