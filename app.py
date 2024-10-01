@@ -2,7 +2,6 @@ from flask import Flask, request, jsonify, render_template, send_file
 from datetime import datetime
 import re
 import os
-import io
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -299,12 +298,10 @@ def plot_diaper_stats():
     plt.xticks(rotation=90)
 
     # Step 4: Save the plot to a BytesIO object and return it as an image
-    img = io.BytesIO()
-    plt.savefig(img, format='png')
-    img.seek(0)
+    image_path = '/tmp/diaper_stats_plot.png'  # Temporary location to store the plot
+    plt.savefig(image_path, format='png')
     plt.close()  # Close the plot to free up memory
-    
-    return send_file(img, mimetype='image/png')
+    return send_file(image_path, mimetype='image/png')
 
 
 if __name__ == '__main__':

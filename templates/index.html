@@ -295,8 +295,8 @@
             // If the graph is currently hidden, show it and change the button text to "Hide Graphs"
             if (diaperChart.style.display === 'none') {
                 var timestamp = new Date().getTime();
-                diaperChart.style.display = 'block';
                 diaperChart.src = '/plot_diaper_stats?t=' + timestamp;  // Set the image source to Flask route
+                diaperChart.style.display = 'block';
                 showGraphsButton.innerText = "Hide Graphs";
                 showGraphsButton.classList.add('active');
             } else {
