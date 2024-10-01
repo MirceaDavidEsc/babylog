@@ -237,6 +237,25 @@ th, td {
 }
 th {
     background-color: #f2f2f2;
+    position: sticky; /* Keep the table header sticky */
+    top: 0; /* Stick the header to the top of the scrollable area */
+    z-index: 1;
+}
+tbody {
+            display: block;
+            max-height: 300px; /* Limit the table body to a fixed height (adjust as needed) */
+            overflow-y: auto; /* Enable vertical scrolling */
+            width: 100%;
+}
+tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+}
+thead, tbody tr {
+    display: table;
+    width: 100%;
+    table-layout: fixed; /* Ensures the columns are the same width */
 }
 
 /* Ensure the graph image is hidden initially */
