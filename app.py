@@ -261,9 +261,21 @@ def calculate_daily_summary():
     sleep_summary['naps_time_avg'] = sleep_summary['naps_time_sum'] / sleep_summary['naps_time_cnt']
     
     daily_summary = pd.merge(log_summary, sleep_summary, on='date', how='inner')
+    daily_summary = daily_summary.sort_values(by='date', ascending=False)
 
     # Return the final summary DataFrame
     return daily_summary
+
+@app.route('/get_daily_summary', methods=['GET'])
+def get_daily_summary():
+    # Step 1: Get the daily summary using the calculate_daily_summary function
+    daily_summary_df = calculate_daily_summary()
+
+    # Step 2: Convert the DataFrame to a dictionary so it can be returned as JSON
+    summary_data = daily_summary_df.to_dict(orient='records')
+
+    # Step 3: Return the summary data as JSON
+    return jsonify(summary_data)
 
 
 @app.route('/plot_diaper_stats', methods=['GET'])

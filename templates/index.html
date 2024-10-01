@@ -61,6 +61,24 @@
             <div class="stat-box" id="feeding-count-box">No data</div>
             <div class="stat-box" id="feeding-amount-box">No data</div>
         </div>
+        
+        <table id="summaryTable">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th># Wet Diapers</th>
+                <th># Dirty Diapers</th>
+                <th># of Feedings</th>
+                <th>Total Feeding <br>Amount (mL)</th>
+                <th>Total Naps</th>
+                <th>Total Nap <br>Time (min)</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Summary data will be dynamically inserted here -->
+        </tbody>
+    </table>
+        
         <h2 class="stats-heading">Weekly Stats</h2>
         <button id="show-graphs-button" onclick="toggleGraph()">Show Graphs</button>
         <img id="diaperChart" alt="Diaper Chart" width="600" height="400" />
@@ -94,6 +112,7 @@
                 // Calculate stats
                 // Load all stats using the single function
                 loadDailyStats();
+                loadSummaryTable();
             } else {
                 // Hide the stats and show the log
                 statsContent.classList.remove('active');
@@ -306,6 +325,48 @@
                 showGraphsButton.classList.remove('active');
             }
         }
+        
+        // Function to fetch and display the daily summary table
+        function loadSummaryTable() {
+            fetch('/get_daily_summary')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('#summaryTable tbody');
+                    tableBody.innerHTML = '';  // Clear any existing data
+
+                    // Loop through the summary data and create table rows
+                    data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        
+                        // Create table cells for each column
+                        tr.innerHTML = `
+                            <td>${formatDate(row.date)}</td>
+                            <td>${row.wet_diapers_sum}</td>
+                            <td>${row.dirty_diapers_sum}</td>
+                            <td>${row.feed_cnt}</td>
+                            <td>${row.feed_amt_sum}</td>
+                            <td>${row.nap_cnt}</td>
+                            <td>${row.naps_time_sum}</td>
+                        `;
+
+                        // Append the row to the table body
+                        tableBody.appendChild(tr);
+                    });
+                })
+                .catch(error => console.error('Error loading summary:', error));
+        }
+        
+        // Helper function to format the date
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                weekday: 'short', // Abbreviated weekday, e.g., "Thu"
+                year: 'numeric',
+                month: 'short', // Abbreviated month, e.g., "Sep"
+                day: 'numeric'
+            });
+        }
+        
         
 		console.log("Load log.")
         // Load the log when the page loads

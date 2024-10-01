@@ -224,6 +224,21 @@ HTML and Java
     margin-bottom: 20px;
 }
 
+table {
+    width: 90%; /* Make the table take up 90% of the screen */
+    margin: 20px auto; /* Center the table on the screen */
+    border-collapse: collapse;
+    padding: 20px;
+}
+th, td {
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    text-align: center;
+}
+th {
+    background-color: #f2f2f2;
+}
+
 /* Ensure the graph image is hidden initially */
         #diaperChart {
             display: none;
