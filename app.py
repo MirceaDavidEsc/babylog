@@ -1,8 +1,10 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from datetime import datetime
 import re
 import os
+import io
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 app = Flask(__name__)
@@ -237,8 +239,8 @@ def calculate_daily_summary():
     
     # Step 3: Calculate sleep durations, get rid of overnight sleep
     log_df_sleep = calculate_sleep_durations(log_df)[0]
-    log_df_sleep_filtered = log_df_sleep[log_df_sleep['asleep'].dt.date == log_df_sleep['awake'].dt.date]
-    log_df_sleep_filtered.loc[:,'date'] = log_df_sleep_filtered['asleep'].dt.date
+    log_df_sleep_filtered = log_df_sleep[log_df_sleep['asleep'].dt.date == log_df_sleep['awake'].dt.date].copy()
+    log_df_sleep_filtered.loc[:,'date'] = log_df_sleep_filtered.loc[:,'asleep'].dt.date
     
     # Step 4: Group by date and summarize the required fields
     log_summary = log_df.groupby('date').agg(
@@ -246,12 +248,16 @@ def calculate_daily_summary():
         dirty_diapers_sum=pd.NamedAgg(column='dirty_diaper', aggfunc='sum'),
         feed_cnt=pd.NamedAgg(column='feed_flag', aggfunc='sum'),
         feed_amt_sum=pd.NamedAgg(column='feeding_amt', aggfunc='sum'),
+        feed_amt_mean=pd.NamedAgg(column='feeding_amt', aggfunc='mean'),
+        feed_amt_std=pd.NamedAgg(column='feeding_amt', aggfunc='std'),
         nap_cnt=pd.NamedAgg(column='nap_flag', aggfunc='sum'),
     ).reset_index()
 
     sleep_summary = log_df_sleep_filtered.groupby('date').agg(
         naps_time_sum=pd.NamedAgg(column='sleep_duration', aggfunc='sum'),
-        naps_time_cnt=pd.NamedAgg(column='sleep_duration', aggfunc='size')
+        naps_time_cnt=pd.NamedAgg(column='sleep_duration', aggfunc='size'),
+        naps_time_mean=pd.NamedAgg(column='sleep_duration', aggfunc='mean'),
+        naps_time_std=pd.NamedAgg(column='sleep_duration', aggfunc='std')        
     ).reset_index()
     sleep_summary['naps_time_avg'] = sleep_summary['naps_time_sum'] / sleep_summary['naps_time_cnt']
     
@@ -259,6 +265,46 @@ def calculate_daily_summary():
 
     # Return the final summary DataFrame
     return daily_summary
+
+
+@app.route('/plot_diaper_stats', methods=['GET'])
+def plot_diaper_stats():
+    # Step 1: Calculate the daily summary
+    daily_summary_df = calculate_daily_summary()
+
+    # Step 2: Extract the necessary data for plotting
+    dates = daily_summary_df['date']
+    wet_diapers = daily_summary_df['wet_diapers_sum']
+    dirty_diapers = daily_summary_df['dirty_diapers_sum']
+    
+    x = range(len(dates))  # Create numeric x-axis positions
+    bar_width = 0.35
+
+    # Step 3: Create the plot
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    # Plot wet and dirty diapers as stacked bars
+    ax.bar(x, wet_diapers, width=bar_width, label='Wet Diapers', color='blue')
+    ax.bar([p + bar_width for p in x], dirty_diapers, width=bar_width, label='Dirty Diapers', color='green')
+
+    # Add labels and title
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Diaper Count')
+    ax.set_title('Daily Diaper Usage')
+    ax.set_xticks([p + bar_width / 2 for p in x])
+    ax.set_xticklabels(dates, rotation=90)
+    ax.legend()
+
+    # Rotate the x-axis labels for better readability
+    plt.xticks(rotation=90)
+
+    # Step 4: Save the plot to a BytesIO object and return it as an image
+    img = io.BytesIO()
+    plt.savefig(img, format='png')
+    img.seek(0)
+    plt.close()  # Close the plot to free up memory
+    
+    return send_file(img, mimetype='image/png')
 
 
 if __name__ == '__main__':

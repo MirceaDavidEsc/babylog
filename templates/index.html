@@ -62,21 +62,8 @@
             <div class="stat-box" id="feeding-amount-box">No data</div>
         </div>
         <h2 class="stats-heading">Weekly Stats</h2>
-        <div class="stats-grid">
-            <div class="stat-box">Diapers</div>
-            <div class="stat-box">Nap Time</div>
-            <div class="stat-box"># of Naps</div>
-            <div class="stat-box">Feeding Sessions</div>
-            <div class="stat-box">Feeding Amounts</div>
-        </div>
-        <h2 class="stats-heading">All-time Stats</h2>
-        <div class="stats-grid">
-            <div class="stat-box">Diapers</div>
-            <div class="stat-box">Nap Time</div>
-            <div class="stat-box"># of Naps</div>
-            <div class="stat-box">Feeding Sessions</div>
-            <div class="stat-box">Feeding Amounts</div>
-        </div>
+        <button id="show-graphs-button" onclick="toggleGraph()">Show Graphs</button>
+        <img id="diaperChart" alt="Diaper Chart" width="600" height="400" />
     </div>
 
     <script>
@@ -91,6 +78,9 @@
             const toggleButton = document.getElementById('toggle-button');
             const logContent = document.getElementById('log-content');
             const statsContent = document.getElementById('stats-content');
+            const diaperChart = document.getElementById('diaperChart');
+            const showGraphsButton = document.getElementById('show-graphs-button');
+
 
             // Check which view is currently active and toggle
             if (logContent.classList.contains('active')) {
@@ -111,6 +101,9 @@
                 // Change the button text and style
                 toggleButton.textContent = 'Show Stats';
                 toggleButton.classList.remove('stats-view');
+                diaperChart.style.display = 'none';
+                showGraphsButton.textContent = "Show Graphs";
+                showGraphsButton.classList.remove('active');
             }
         }
         
@@ -267,22 +260,52 @@
         }
         
         // Function to fetch daily stats and update the stats boxes
-    function loadDailyStats() {
-        fetch('/load_daily_stats')
-        .then(response => response.json())
-        .then(data => {
-            // Update all the stats boxes with the results
-            document.getElementById('diaper-stats-box').innerHTML = `<strong>Diapers:</strong><br> ${data.wet_count} Wet<br> ${data.dirty_count} Dirty`;
-            document.getElementById('nap-stats-box').innerHTML = `<strong>Time since nap:</strong><br> ${data.time_since_nap} min`;
-            document.getElementById('nap-count-box').innerHTML = `<strong># of naps:</strong><br>${data.nap_count}`;
-            document.getElementById('nap-time-box').innerHTML = `<strong>Total nap time:</strong><br>${data.total_nap_time} min`;
-            document.getElementById('feeding-count-box').innerHTML = `<strong># of Feedings:</strong><br>${data.feeding_count}`;
-            document.getElementById('feeding-amount-box').innerHTML = `<strong>Feeding amount:</strong><br>${data.total_feeding_amount} mL`;
-        })
-        .catch(error => {
-            console.error('Error loading daily stats:', error);
-        });
-    }
+        function loadDailyStats() {
+            fetch('/load_daily_stats')
+            .then(response => response.json())
+            .then(data => {
+                // Update all the stats boxes with the results
+                document.getElementById('diaper-stats-box').innerHTML = `<strong>Diapers:</strong><br> ${data.wet_count} Wet<br> ${data.dirty_count} Dirty`;
+                document.getElementById('nap-stats-box').innerHTML = `<strong>Time since nap:</strong><br> ${data.time_since_nap} min`;
+                document.getElementById('nap-count-box').innerHTML = `<strong># of naps:</strong><br>${data.nap_count}`;
+                document.getElementById('nap-time-box').innerHTML = `<strong>Total nap time:</strong><br>${data.total_nap_time} min`;
+                document.getElementById('feeding-count-box').innerHTML = `<strong># of Feedings:</strong><br>${data.feeding_count}`;
+                document.getElementById('feeding-amount-box').innerHTML = `<strong>Feeding amount:</strong><br>${data.total_feeding_amount} mL`;
+            })
+            .catch(error => {
+                console.error('Error loading daily stats:', error);
+            });
+        }
+        
+        function plot_diaper_stats() {
+            var diaperChart = document.getElementById('diaperChart');
+
+            // Fetch the graph image from the server
+            diaperChart.src = '/plot_diaper_stats';  // Set the image source to Flask route
+
+            // Make the graph visible after the button is clicked
+            // diaperChart.style.display = 'block';
+        }
+        
+        // Function to toggle the diaper stats graph visibility and button text
+        function toggleGraph() {
+            var diaperChart = document.getElementById('diaperChart');
+            var showGraphsButton = document.getElementById('show-graphs-button');
+
+            // If the graph is currently hidden, show it and change the button text to "Hide Graphs"
+            if (diaperChart.style.display === 'none') {
+                var timestamp = new Date().getTime();
+                diaperChart.style.display = 'block';
+                diaperChart.src = '/plot_diaper_stats?t=' + timestamp;  // Set the image source to Flask route
+                showGraphsButton.innerText = "Hide Graphs";
+                showGraphsButton.classList.add('active');
+            } else {
+                // If the graph is currently visible, hide it and change the button text to "Show Graphs"
+                diaperChart.style.display = 'none';
+                showGraphsButton.innerText = "Show Graphs";
+                showGraphsButton.classList.remove('active');
+            }
+        }
         
 		console.log("Load log.")
         // Load the log when the page loads

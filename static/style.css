@@ -72,6 +72,32 @@ input, select {
     display: inline-block;
 }
 
+button {
+    background-color: #4CAF50; /* Initial background color (green) */
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.3s, border-color 0.3s; /* Smooth transitions */
+}
+
+/* Hover effect: similar to "Edit Log" button */
+button:hover {
+    background-color: #45a049; /* Darker green on hover */
+}
+
+/* Active state: change color when the button is clicked */
+button.active {
+    background-color: #008CBA; /* Blue color when active */
+    color: white;
+}
+
 /* Hover effect for the green button */
 #edit-log-btn:hover {
     background-color: #45a049; /* Slightly darker green */
@@ -197,3 +223,8 @@ HTML and Java
     font-weight: bold;
     margin-bottom: 20px;
 }
+
+/* Ensure the graph image is hidden initially */
+        #diaperChart {
+            display: none;
+        }
