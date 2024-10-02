@@ -87,6 +87,10 @@ button {
     transition: background-color 0.3s, border-color 0.3s; /* Smooth transitions */
 }
 
+#toggle-button {
+	border-radius: 0px;
+}
+
 /* Hover effect: similar to "Edit Log" button */
 button:hover {
     background-color: #45a049; /* Darker green on hover */
