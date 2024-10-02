@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import re
 import os
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 
 
@@ -229,7 +230,7 @@ def calculate_sleep_durations(log_df):
     return [sleep_periods, still_running]
 
 
-def calculate_daily_summary():
+def calculate_daily_summary(reverse=True):
     # Step 1: Load all log data (including archive)
     log_data = load_log_data(withArchive=True)
     
@@ -249,7 +250,6 @@ def calculate_daily_summary():
         feed_amt_sum=pd.NamedAgg(column='feeding_amt', aggfunc='sum'),
         feed_amt_mean=pd.NamedAgg(column='feeding_amt', aggfunc='mean'),
         feed_amt_std=pd.NamedAgg(column='feeding_amt', aggfunc='std'),
-        nap_cnt=pd.NamedAgg(column='nap_flag', aggfunc='sum'),
     ).reset_index()
 
     sleep_summary = log_df_sleep_filtered.groupby('date').agg(
@@ -261,7 +261,9 @@ def calculate_daily_summary():
     sleep_summary['naps_time_avg'] = sleep_summary['naps_time_sum'] / sleep_summary['naps_time_cnt']
     
     daily_summary = pd.merge(log_summary, sleep_summary, on='date', how='inner')
-    daily_summary = daily_summary.sort_values(by='date', ascending=False)
+    
+    if reverse:
+        daily_summary = daily_summary.sort_values(by='date', ascending=False)
 
     # Return the final summary DataFrame
     return daily_summary
@@ -279,17 +281,17 @@ def get_daily_summary():
 
 
 @app.route('/plot_diaper_stats', methods=['GET'])
-def plot_diaper_stats():
+def plot_diaper_stats(num_days = 14):    
     # Step 1: Calculate the daily summary
-    daily_summary_df = calculate_daily_summary()
-    daily_summary_df_recent = daily_summary_df[daily_summary_df['date'] >= datetime.now().date() - timedelta(days = 14)]
+    daily_summary_df = calculate_daily_summary(reverse=False)
+    daily_summary_df_recent = daily_summary_df[daily_summary_df['date'] >= datetime.now().date() - timedelta(days = num_days)]
 
     # Step 2: Extract the necessary data for plotting
     dates = pd.to_datetime(daily_summary_df_recent['date'])
     wet_diapers = daily_summary_df_recent['wet_diapers_sum']
     dirty_diapers = daily_summary_df_recent['dirty_diapers_sum']
     
-    x = range(len(dates))  # Create numeric x-axis positions
+    x = range(num_days)  # Create numeric x-axis positions
     bar_width = 0.35
 
     # Step 3: Create the plot
@@ -315,6 +317,102 @@ def plot_diaper_stats():
     plt.savefig(image_path, format='png')
     plt.close()  # Close the plot to free up memory
     return send_file(image_path, mimetype='image/png')
+
+@app.route('/plot_nap_lengths', methods=['GET'])
+def plot_nap_lengths(num_days = 14):
+    df = calculate_daily_summary(reverse=False)
+    df_recent = df[df['date'] >= datetime.now().date() - timedelta(days = num_days)]
+    dates = pd.to_datetime(df_recent['date'])
+    nap_lengths = df_recent['naps_time_mean']
+    naps_time_sum = df_recent['naps_time_sum']
+    naps_time_cnt = df_recent['naps_time_cnt']
+    nap_err = df_recent['naps_time_std'] / np.sqrt(naps_time_cnt)
+    
+    
+    fig, ax1 = plt.subplots(figsize=(10, 6))
+
+    
+    # Step 2: Plot the line chart with error bars
+    ax1.errorbar(dates, nap_lengths, yerr=nap_err, fmt='-o', ecolor='gray', capsize=5, label='Average Nap Length')    
+
+    # Plot total nap time (black) without error bars
+    ax1.plot(dates, naps_time_sum, '-o', label='Total Nap Time', color='black')
+    
+    # Add annotations above the data points (nap_time_cnt)
+    for i, row in df.iterrows():
+        ax1.annotate(f"naps = {row['naps_time_cnt']}", 
+                     (row['date'], row['naps_time_sum'] - 15),  # Position the annotation above the point
+                     textcoords="offset points", xytext=(0, 0), ha='center', color='black')
+
+    
+    # Step 3: Customize the x-axis to show dates in "Mmm DD" format
+    ax1.set_xticks(dates)
+    ax1.set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
+    ax1.set_ylim(bottom=0)
+  
+    # Add separate legends for each y-axis
+    ax1.legend(loc='upper left')  # For the average nap length (blue)
+
+    # Step 4: Label the axes
+    ax1.set_xlabel('Date')
+    ax1.set_ylabel('Average nap time (minutes) [and # of naps]')
+    ax1.set_title('Nap Stats')
+    
+    image_path = '/tmp/nap_length_plot.png'  # Temporary location to store the plot
+    plt.savefig(image_path, format='png')
+    plt.close()  # Close the plot to free up memory
+    return send_file(image_path, mimetype='image/png')
+
+@app.route('/plot_stats_graphs', methods=['GET'])
+def plot_all_plots(num_days = 14):
+    df = calculate_daily_summary(reverse=False)
+    df_recent = df[df['date'] >= datetime.now().date() - timedelta(days = num_days)]
+    dates = pd.to_datetime(df_recent['date'])
+    wet_diapers = df_recent['wet_diapers_sum']
+    dirty_diapers = df_recent['dirty_diapers_sum']
+    nap_lengths = df_recent['naps_time_mean']
+    naps_time_sum = df_recent['naps_time_sum']
+    naps_time_cnt = df_recent['naps_time_cnt']
+    nap_err = df_recent['naps_time_std'] / np.sqrt(naps_time_cnt)    
+    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 10))
+    
+    # Step 1: Create a multi-panel figure (N-by-1)
+    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 10))  # 2 rows, 1 column
+
+    # Step 2: Plot Diaper Stats on the first subplot
+    axs[0].plot(dates, wet_diapers, '-o', label='Wet Diapers', color='blue')
+    axs[0].plot(dates, dirty_diapers, '-o', label='Dirty Diapers', color='green')
+    axs[0].set_title('Diaper Stats')
+    axs[0].set_xlabel('Date')
+    axs[0].set_ylabel('Count')
+    axs[0].legend()
+    axs[0].yaxis.grid()
+    axs[0].set_xticks(dates)
+    axs[0].set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
+
+    # Step 3: Plot Nap Lengths on the second subplot
+    axs[1].errorbar(dates, nap_lengths, yerr=nap_err, fmt='-o', ecolor='gray', capsize=5, label='Average Nap Length', color='blue')
+    axs[1].plot(dates, naps_time_sum, '-o', label='Total Nap Time', color='black')
+    axs[1].set_title('Nap Lengths')
+    axs[1].set_xlabel('Date')
+    axs[1].set_ylabel('Time (minutes)')
+    axs[1].legend()
+    axs[1].yaxis.grid()
+    axs[1].set_xticks(dates)
+    axs[1].set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
+    
+    image_path = '/tmp/all_plots.png'  # Temporary location to store the plot
+    plt.subplots_adjust(hspace=0.5)
+    plt.savefig(image_path, format='png')
+    plt.close()  # Close the plot to free up memory
+    return send_file(image_path, mimetype='image/png')
+
+@app.route('/plot_milk_consumed', methods=['GET'])
+def plot_milk_consumed():
+    # Placeholder code for milk consumption graph
+    # Generate and return a placeholder graph for average milk consumed per feeding
+    pass
+
 
 
 if __name__ == '__main__':
