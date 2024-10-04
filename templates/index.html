@@ -69,7 +69,7 @@
                 <th># Wet Diapers</th>
                 <th># Dirty Diapers</th>
                 <th># of Feedings</th>
-                <th>Total Feeding <br>Amount (mL)</th>
+                <th>Bottle Feeding <br>Amount (mL)</th>
                 <th>Total Naps</th>
                 <th>Total Nap <br>Time (min)</th>
             </tr>
@@ -340,14 +340,13 @@
                     // Loop through the summary data and create table rows
                     data.forEach(row => {
                         const tr = document.createElement('tr');
-                        
                         // Create table cells for each column
                         tr.innerHTML = `
                             <td>${formatDate(row.date)}</td>
                             <td>${row.wet_diapers_sum}</td>
                             <td>${row.dirty_diapers_sum}</td>
-                            <td>${row.feed_cnt}</td>
-                            <td>${row.feed_amt_sum}</td>
+                            <td>${row.all_feed_cnt}</td>
+                            <td>${row.feeding_bottle_sum}</td>
                             <td>${row.naps_time_cnt}</td>
                             <td>${row.naps_time_sum}</td>
                         `;

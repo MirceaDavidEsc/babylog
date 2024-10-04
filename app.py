@@ -168,13 +168,13 @@ def load_daily_stats():
     
     # Return all stats in one JSON response
     return jsonify({
-        'wet_count': str(today_df_summary.loc['wet_diaper','sum']),
-        'dirty_count': str(today_df_summary.loc['dirty_diaper','sum']),
-        'time_since_nap': str(time_since_nap),
-        'nap_count': str(nap_count),
-        'total_nap_time': str(today_sleep_summary),
-        'feeding_count': str(today_df_summary.loc['feed_flag','sum']),
-        'total_feeding_amount': str(today_df_summary.loc['feeding_amt','sum'])
+        'wet_count': str(int(today_df_summary.loc['wet_diaper','sum'])),
+        'dirty_count': str(int(today_df_summary.loc['dirty_diaper','sum'])),
+        'time_since_nap': str(int(time_since_nap)),
+        'nap_count': str(int(nap_count)),
+        'total_nap_time': str(int(today_sleep_summary)),
+        'feeding_count': str(int(today_df_summary.loc['feed_flag','sum'])),
+        'total_feeding_amount': str(int(today_df_summary.loc['feeding_amt','sum']))
     })
 
 # Helper function to turn the log into a pandas dataframe
@@ -253,6 +253,7 @@ def calculate_daily_summary(reverse=True):
     feeding_summary = log_df[~log_df['feeding_amt'].isna()].groupby('date').agg(
            feeding_bottle_cnt = pd.NamedAgg(column = 'feeding_amt', aggfunc = 'size'),
            feeding_bottle_mean = pd.NamedAgg(column = 'feeding_amt', aggfunc = 'mean'),
+           feeding_bottle_sum = pd.NamedAgg(column = 'feeding_amt', aggfunc = 'sum'),
            feed_amt_std = pd.NamedAgg(column='feeding_amt', aggfunc='std'),
            ).reset_index()
 
@@ -278,7 +279,7 @@ def calculate_daily_summary(reverse=True):
 def get_daily_summary():
     # Step 1: Get the daily summary using the calculate_daily_summary function
     daily_summary_df = calculate_daily_summary()
-
+    daily_summary_df = daily_summary_df.fillna(0)
     # Step 2: Convert the DataFrame to a dictionary so it can be returned as JSON
     summary_data = daily_summary_df.to_dict(orient='records')
 
