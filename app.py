@@ -138,7 +138,7 @@ def load_log_data(withArchive = False):
 
 def feeding_amount_df(notes):
     match = re.search(r'(\d+)\s*mL', notes, re.IGNORECASE)
-    return int(match.group(1)) if match else 0
+    return int(match.group(1)) if match else np.nan
 
 # Master function to load daily stats
 @app.route('/load_daily_stats', methods=['GET'])
@@ -242,25 +242,31 @@ def calculate_daily_summary(reverse=True):
     log_df_sleep_filtered = log_df_sleep[log_df_sleep['asleep'].dt.date == log_df_sleep['awake'].dt.date].copy()
     log_df_sleep_filtered.loc[:,'date'] = log_df_sleep_filtered.loc[:,'asleep'].dt.date
     
+    
     # Step 4: Group by date and summarize the required fields
     log_summary = log_df.groupby('date').agg(
         wet_diapers_sum=pd.NamedAgg(column='wet_diaper', aggfunc='sum'),
         dirty_diapers_sum=pd.NamedAgg(column='dirty_diaper', aggfunc='sum'),
-        feed_cnt=pd.NamedAgg(column='feed_flag', aggfunc='sum'),
-        feed_amt_sum=pd.NamedAgg(column='feeding_amt', aggfunc='sum'),
-        feed_amt_mean=pd.NamedAgg(column='feeding_amt', aggfunc='mean'),
-        feed_amt_std=pd.NamedAgg(column='feeding_amt', aggfunc='std'),
-    ).reset_index()
+        all_feed_cnt=pd.NamedAgg(column='feed_flag', aggfunc='sum'),
+        ).reset_index()
+    
+    feeding_summary = log_df[~log_df['feeding_amt'].isna()].groupby('date').agg(
+           feeding_bottle_cnt = pd.NamedAgg(column = 'feeding_amt', aggfunc = 'size'),
+           feeding_bottle_mean = pd.NamedAgg(column = 'feeding_amt', aggfunc = 'mean'),
+           feed_amt_std = pd.NamedAgg(column='feeding_amt', aggfunc='std'),
+           ).reset_index()
 
     sleep_summary = log_df_sleep_filtered.groupby('date').agg(
         naps_time_sum=pd.NamedAgg(column='sleep_duration', aggfunc='sum'),
         naps_time_cnt=pd.NamedAgg(column='sleep_duration', aggfunc='size'),
         naps_time_mean=pd.NamedAgg(column='sleep_duration', aggfunc='mean'),
         naps_time_std=pd.NamedAgg(column='sleep_duration', aggfunc='std')        
-    ).reset_index()
+        ).reset_index()
+    
     sleep_summary['naps_time_avg'] = sleep_summary['naps_time_sum'] / sleep_summary['naps_time_cnt']
     
     daily_summary = pd.merge(log_summary, sleep_summary, on='date', how='inner')
+    daily_summary = pd.merge(daily_summary, feeding_summary, on='date', how='outer')
     
     if reverse:
         daily_summary = daily_summary.sort_values(by='date', ascending=False)
@@ -365,19 +371,29 @@ def plot_nap_lengths(num_days = 14):
 
 @app.route('/plot_stats_graphs', methods=['GET'])
 def plot_all_plots(num_days = 14):
-    df = calculate_daily_summary(reverse=False)
+    df = calculate_daily_summary(reverse=False).fillna(0)
     df_recent = df[df['date'] >= datetime.now().date() - timedelta(days = num_days)]
     dates = pd.to_datetime(df_recent['date'])
     wet_diapers = df_recent['wet_diapers_sum']
     dirty_diapers = df_recent['dirty_diapers_sum']
+    
+    # Nap data
     nap_lengths = df_recent['naps_time_mean']
     naps_time_sum = df_recent['naps_time_sum']
     naps_time_cnt = df_recent['naps_time_cnt']
-    nap_err = df_recent['naps_time_std'] / np.sqrt(naps_time_cnt)    
+    nap_err = df_recent['naps_time_std'] / np.sqrt(naps_time_cnt)
+    
+    # Feeding data
+    bottle_feed_cnt = df_recent['feeding_bottle_cnt'].fillna(0)
+    nonbottle_feed_cnt = df_recent['all_feed_cnt'] - bottle_feed_cnt
+    bottle_feed_avg = df_recent['feeding_bottle_mean']
+    bottle_feed_err = df_recent['feed_amt_std'] / np.sqrt(bottle_feed_cnt)
+    
+    
     fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 10))
     
     # Step 1: Create a multi-panel figure (N-by-1)
-    fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 10))  # 2 rows, 1 column
+    fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(10, 10))  # 3 rows, 1 column
 
     # Step 2: Plot Diaper Stats on the first subplot
     axs[0].plot(dates, wet_diapers, '-o', label='Wet Diapers', color='blue')
@@ -401,7 +417,26 @@ def plot_all_plots(num_days = 14):
     axs[1].set_xticks(dates)
     axs[1].set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
     
-    image_path = '/tmp/all_plots.png'  # Temporary location to store the plot
+    # Step 4: plot feeding data, including number of feedings and average feeding amount
+    axs[2].errorbar(dates, bottle_feed_avg, yerr = bottle_feed_err, fmt='-o', ecolor='gray', capsize=5, label='Average Bottle Amt', color='blue')
+    axs[2].set_ylabel('Bottle Feeding Amount (mL)')
+    axs[2].set_title('Feeding Data')
+    
+    ax3 = axs[2].twinx()
+    bar_width = 0.4    
+    ax3.bar(dates, nonbottle_feed_cnt, width=bar_width, label='Non-bottle Feed Count', color='orange', alpha=0.6)
+    ax3.bar(dates, bottle_feed_cnt, bottom=nonbottle_feed_cnt, width=bar_width, label='Bottle Feed Count', color='green', alpha=0.6)
+    
+    axs[2].set_xticks(dates)
+    axs[2].set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
+    axs[2].legend(loc='upper left')  # For the bottle feeding average
+    axs[2].grid(False)  # Disable grid on the stacked bar plot
+    ax3.set_ylabel('Feeding Counts')  # Label for the right y-axis
+    ax3.set_ylim(bottom=0)  # Ensure the y-axis starts at 0
+    ax3.legend(loc='upper right')  # For the feeding counts
+
+    
+    image_path = 'all_plots.png'  # Temporary location to store the plot
     plt.subplots_adjust(hspace=0.5)
     plt.savefig(image_path, format='png')
     plt.close()  # Close the plot to free up memory

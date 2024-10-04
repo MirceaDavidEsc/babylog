@@ -262,9 +262,15 @@ thead, tbody tr {
     table-layout: fixed; /* Ensures the columns are the same width */
 }
 
+#graphs-container {
+    width: 100%; /* Full width for the container */
+    padding: 20px; /* Optional padding around the content */
+}
+
+
 /* Ensure the graph image is hidden initially */
 .graph {
-    max-width: 600px; /* Maximum width of graph */
     width: 100%; /* Set width to 100% to make it responsive */
+    height: auto;
     margin: 20px auto; /* Center graphs horizontally */
 }
