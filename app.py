@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, render_template, send_file
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import re
 import os
 import pandas as pd
@@ -221,13 +221,96 @@ def calculate_sleep_durations(log_df):
      
     if (pd.isna(sleep_periods.iloc[-1]['awake'])):
         sleep_periods.at[sleep_periods.index[-1],'awake'] = datetime.now().replace(second=0,microsecond=0)
-        still_running = True
+        still_asleep = True
     else:
-        still_running = False
+        still_asleep = False
     
     sleep_periods['sleep_duration'] = (sleep_periods['awake'] - sleep_periods['asleep']).dt.total_seconds() / 60
+    
+    # Add additional helper columns: the date of the nap, the start time, and the end time
+    sleep_periods.loc[:,'date'] = sleep_periods.loc[:,'asleep'].dt.date
+    sleep_periods['asleep_time_min'] = sleep_periods['asleep'].dt.time
+    sleep_periods['asleep_time_max'] = sleep_periods['awake'].dt.time
+    
+    return [sleep_periods, still_asleep]
 
-    return [sleep_periods, still_running]
+
+
+# sleep_df = calculate_sleep_durations(log_df)[0]
+
+def calculate_sleep_histogram(sleep_df):
+    # Calculate th number of days in the dataset
+    days_cnt = sleep_df['date'].nunique()
+    
+    sleep_record = []
+    # Iterate over all rows of sleep_df
+    for index, row in sleep_df.iterrows():
+        time_asleep = floor_to_quarter_hour(sleep_df.loc[index,"asleep_time_min"])
+        time_awake = floor_to_quarter_hour(sleep_df.loc[index,"asleep_time_max"])
+        
+        print("index: " + str(index) +", time_asleep: " + str(time_asleep) + ", time_awake: " + str(time_awake))
+        
+        if (time_awake < time_asleep):
+            before_midnight_seq = pd.date_range(str(time_asleep), "23:59", freq="15min").time
+            after_midnight_seq = pd.date_range("00:00", str(time_awake), freq="15min").time
+            time_range = list(before_midnight_seq) + list(after_midnight_seq)
+        else:
+            time_range = list(pd.date_range(str(time_asleep), str(time_awake), freq="15min").time)  # Generate time range for 15-minute increments
+    
+        sleep_record = sleep_record + time_range
+    
+    # group by the time string and do counts
+    sleep_record_df = pd.DataFrame({"asleep_times":sleep_record})
+    sleep_record_histogram = sleep_record_df.groupby("asleep_times").agg(time_counts = pd.NamedAgg(column="asleep_times", aggfunc="size")).reset_index()
+    
+    time_range = pd.date_range("00:00", "23:59", freq="15T").time  # Generate time range for 15-minute increments
+    sleep_histogram_alltimes = pd.DataFrame({'asleep_times': time_range})  # Initialize sleep count to 0
+    sleep_histogram_merged = sleep_histogram_alltimes.merge(sleep_record_histogram, on="asleep_times", how="left")
+    sleep_histogram_merged['time_counts'] = sleep_histogram_merged['time_counts'].fillna(0).astype(int)
+    
+    sleep_histogram_merged['asleep_pct'] = sleep_histogram_merged['time_counts'] / days_cnt
+            
+    return sleep_histogram_merged
+
+
+def plot_sleep_histogram(sleep_histogram_merged):
+    # Step 1: Prepare the figure
+    plt.figure(figsize=(12, 6))
+    
+    # Step 2: Plotting the bar chart
+    plt.plot(sleep_histogram_merged['asleep_times'].astype(str), sleep_histogram_merged['time_counts'], color='blue', alpha=0.7)
+
+    plt.xlabel('Asleep Times')
+    plt.xticks(ticks=range(0, len(sleep_histogram_merged['asleep_times']), 4), 
+               labels=sleep_histogram_merged['asleep_times'].astype(str)[::4], rotation=45)
+    plt.xticks(rotation=45)
+    
+    plt.ylabel('Time Counts')
+    plt.ylim(bottom=0)  # Y-axis minimum
+    
+    plt.grid(which='both', linestyle='--', linewidth=0.5, color='lightgray')
+    
+    three_hour_ticks = range(0, len(sleep_histogram_merged['asleep_times']), 12)  # Every 3 hours (12 x 15min)
+    for tick in three_hour_ticks:
+        plt.axvline(x=tick, color='gray', linewidth=1.5)  # Thicker line
+
+    plt.title('Sleep Histogram - Time Counts by Asleep Times')
+    plt.tight_layout()  # Adjust layout to prevent clipping of tick-labels
+    plt.show()
+
+
+def floor_to_quarter_hour(time_obj):
+    # Extract hours and minutes
+    hours = time_obj.hour
+    minutes = time_obj.minute
+
+    # Floor minutes to the nearest quarter-hour
+    floored_minutes = (minutes // 15) * 15
+
+    # Create a new time object with floored minutes
+    floored_time = time(hour=hours, minute=floored_minutes)
+
+    return floored_time
 
 
 def calculate_daily_summary(reverse=True):
@@ -240,7 +323,6 @@ def calculate_daily_summary(reverse=True):
     # Step 3: Calculate sleep durations, get rid of overnight sleep
     log_df_sleep = calculate_sleep_durations(log_df)[0]
     log_df_sleep_filtered = log_df_sleep[log_df_sleep['asleep'].dt.date == log_df_sleep['awake'].dt.date].copy()
-    log_df_sleep_filtered.loc[:,'date'] = log_df_sleep_filtered.loc[:,'asleep'].dt.date
     
     
     # Step 4: Group by date and summarize the required fields
@@ -282,93 +364,7 @@ def get_daily_summary():
     daily_summary_df = daily_summary_df.fillna(0)
     # Step 2: Convert the DataFrame to a dictionary so it can be returned as JSON
     summary_data = daily_summary_df.to_dict(orient='records')
-
-    # Step 3: Return the summary data as JSON
     return jsonify(summary_data)
-
-
-@app.route('/plot_diaper_stats', methods=['GET'])
-def plot_diaper_stats(num_days = 14):    
-    # Step 1: Calculate the daily summary
-    daily_summary_df = calculate_daily_summary(reverse=False)
-    daily_summary_df_recent = daily_summary_df[daily_summary_df['date'] >= datetime.now().date() - timedelta(days = num_days)]
-
-    # Step 2: Extract the necessary data for plotting
-    dates = pd.to_datetime(daily_summary_df_recent['date'])
-    wet_diapers = daily_summary_df_recent['wet_diapers_sum']
-    dirty_diapers = daily_summary_df_recent['dirty_diapers_sum']
-    
-    x = range(num_days)  # Create numeric x-axis positions
-    bar_width = 0.35
-
-    # Step 3: Create the plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    
-    # Plot wet and dirty diapers as stacked bars
-    ax.bar(x, wet_diapers, width=bar_width, label='Wet Diapers', color='blue')
-    ax.bar([p + bar_width for p in x], dirty_diapers, width=bar_width, label='Dirty Diapers', color='green')
-
-    # Add labels and title
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Diaper Count')
-    ax.set_title('Daily Diaper Usage')
-    ax.set_xticks([p + bar_width / 2 for p in x])
-    ax.set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
-    ax.legend()
-
-    # Rotate the x-axis labels for better readability
-    plt.xticks(rotation=90)
-
-    # Step 4: Save the plot to a BytesIO object and return it as an image
-    image_path = '/tmp/diaper_stats_plot.png'  # Temporary location to store the plot
-    plt.savefig(image_path, format='png')
-    plt.close()  # Close the plot to free up memory
-    return send_file(image_path, mimetype='image/png')
-
-@app.route('/plot_nap_lengths', methods=['GET'])
-def plot_nap_lengths(num_days = 14):
-    df = calculate_daily_summary(reverse=False)
-    df_recent = df[df['date'] >= datetime.now().date() - timedelta(days = num_days)]
-    dates = pd.to_datetime(df_recent['date'])
-    nap_lengths = df_recent['naps_time_mean']
-    naps_time_sum = df_recent['naps_time_sum']
-    naps_time_cnt = df_recent['naps_time_cnt']
-    nap_err = df_recent['naps_time_std'] / np.sqrt(naps_time_cnt)
-    
-    
-    fig, ax1 = plt.subplots(figsize=(10, 6))
-
-    
-    # Step 2: Plot the line chart with error bars
-    ax1.errorbar(dates, nap_lengths, yerr=nap_err, fmt='-o', ecolor='gray', capsize=5, label='Average Nap Length')    
-
-    # Plot total nap time (black) without error bars
-    ax1.plot(dates, naps_time_sum, '-o', label='Total Nap Time', color='black')
-    
-    # Add annotations above the data points (nap_time_cnt)
-    for i, row in df.iterrows():
-        ax1.annotate(f"naps = {row['naps_time_cnt']}", 
-                     (row['date'], row['naps_time_sum'] - 15),  # Position the annotation above the point
-                     textcoords="offset points", xytext=(0, 0), ha='center', color='black')
-
-    
-    # Step 3: Customize the x-axis to show dates in "Mmm DD" format
-    ax1.set_xticks(dates)
-    ax1.set_xticklabels(dates.dt.strftime('%b %d'), rotation=45, ha="right")
-    ax1.set_ylim(bottom=0)
-  
-    # Add separate legends for each y-axis
-    ax1.legend(loc='upper left')  # For the average nap length (blue)
-
-    # Step 4: Label the axes
-    ax1.set_xlabel('Date')
-    ax1.set_ylabel('Average nap time (minutes) [and # of naps]')
-    ax1.set_title('Nap Stats')
-    
-    image_path = '/tmp/nap_length_plot.png'  # Temporary location to store the plot
-    plt.savefig(image_path, format='png')
-    plt.close()  # Close the plot to free up memory
-    return send_file(image_path, mimetype='image/png')
 
 @app.route('/plot_stats_graphs', methods=['GET'])
 def plot_all_plots(num_days = 14):
@@ -424,7 +420,7 @@ def plot_all_plots(num_days = 14):
     axs[2].set_title('Feeding Data')
     
     ax3 = axs[2].twinx()
-    bar_width = 0.4    
+    bar_width = 0.4
     ax3.bar(dates, nonbottle_feed_cnt, width=bar_width, label='Non-bottle Feed Count', color='orange', alpha=0.6)
     ax3.bar(dates, bottle_feed_cnt, bottom=nonbottle_feed_cnt, width=bar_width, label='Bottle Feed Count', color='green', alpha=0.6)
     
@@ -442,13 +438,6 @@ def plot_all_plots(num_days = 14):
     plt.savefig(image_path, format='png')
     plt.close()  # Close the plot to free up memory
     return send_file(image_path, mimetype='image/png')
-
-@app.route('/plot_milk_consumed', methods=['GET'])
-def plot_milk_consumed():
-    # Placeholder code for milk consumption graph
-    # Generate and return a placeholder graph for average milk consumed per feeding
-    pass
-
 
 
 if __name__ == '__main__':
