@@ -248,7 +248,7 @@ def calculate_sleep_histogram(sleep_df):
         time_asleep = floor_to_quarter_hour(sleep_df.loc[index,"asleep_time_min"])
         time_awake = floor_to_quarter_hour(sleep_df.loc[index,"asleep_time_max"])
         
-        print("index: " + str(index) +", time_asleep: " + str(time_asleep) + ", time_awake: " + str(time_awake))
+        # print("index: " + str(index) +", time_asleep: " + str(time_asleep) + ", time_awake: " + str(time_awake))
         
         if (time_awake < time_asleep):
             before_midnight_seq = pd.date_range(str(time_asleep), "23:59", freq="15min").time
@@ -263,7 +263,7 @@ def calculate_sleep_histogram(sleep_df):
     sleep_record_df = pd.DataFrame({"asleep_times":sleep_record})
     sleep_record_histogram = sleep_record_df.groupby("asleep_times").agg(time_counts = pd.NamedAgg(column="asleep_times", aggfunc="size")).reset_index()
     
-    time_range = pd.date_range("00:00", "23:59", freq="15T").time  # Generate time range for 15-minute increments
+    time_range = pd.date_range("00:00", "23:59", freq="15min").time  # Generate time range for 15-minute increments
     sleep_histogram_alltimes = pd.DataFrame({'asleep_times': time_range})  # Initialize sleep count to 0
     sleep_histogram_merged = sleep_histogram_alltimes.merge(sleep_record_histogram, on="asleep_times", how="left")
     sleep_histogram_merged['time_counts'] = sleep_histogram_merged['time_counts'].fillna(0).astype(int)
@@ -273,30 +273,26 @@ def calculate_sleep_histogram(sleep_df):
     return sleep_histogram_merged
 
 
-def plot_sleep_histogram(sleep_histogram_merged):
-    # Step 1: Prepare the figure
-    plt.figure(figsize=(12, 6))
-    
-    # Step 2: Plotting the bar chart
-    plt.plot(sleep_histogram_merged['asleep_times'].astype(str), sleep_histogram_merged['time_counts'], color='blue', alpha=0.7)
+def plot_sleep_histogram(sleep_histogram_merged, ax):
+     
+    ax.plot(sleep_histogram_merged['asleep_times'].astype(str), sleep_histogram_merged['time_counts'], color='blue', alpha=0.7)
 
-    plt.xlabel('Asleep Times')
-    plt.xticks(ticks=range(0, len(sleep_histogram_merged['asleep_times']), 4), 
+    ax.set_xlabel('Asleep Times')
+    ax.set_xticks(ticks=range(0, len(sleep_histogram_merged['asleep_times']), 4), 
                labels=sleep_histogram_merged['asleep_times'].astype(str)[::4], rotation=45)
-    plt.xticks(rotation=45)
     
-    plt.ylabel('Time Counts')
-    plt.ylim(bottom=0)  # Y-axis minimum
+    ax.set_ylabel('Time Counts')
+    ax.set_ylim(bottom=0)  # Y-axis minimum
     
-    plt.grid(which='both', linestyle='--', linewidth=0.5, color='lightgray')
+    ax.grid(which='both', linestyle='--', linewidth=0.5, color='lightgray')
     
     three_hour_ticks = range(0, len(sleep_histogram_merged['asleep_times']), 12)  # Every 3 hours (12 x 15min)
     for tick in three_hour_ticks:
-        plt.axvline(x=tick, color='gray', linewidth=1.5)  # Thicker line
+        ax.axvline(x=tick, color='gray', linewidth=1.5, linestyle = '--')  # Thicker line
 
-    plt.title('Sleep Histogram - Time Counts by Asleep Times')
-    plt.tight_layout()  # Adjust layout to prevent clipping of tick-labels
-    plt.show()
+    ax.set_title('Sleep Histogram - Time Counts by Asleep Times')
+    
+    return ax
 
 
 def floor_to_quarter_hour(time_obj):
@@ -390,7 +386,7 @@ def plot_all_plots(num_days = 14):
     fig, axs = plt.subplots(nrows=2, ncols=1, figsize=(10, 10))
     
     # Step 1: Create a multi-panel figure (N-by-1)
-    fig, axs = plt.subplots(nrows=3, ncols=1, figsize=(10, 10))  # 3 rows, 1 column
+    fig, axs = plt.subplots(nrows=4, ncols=1, figsize=(10, 10))  # 3 rows, 1 column
 
     # Step 2: Plot Diaper Stats on the first subplot
     axs[0].plot(dates, wet_diapers, '-o', label='Wet Diapers', color='blue')
@@ -431,10 +427,16 @@ def plot_all_plots(num_days = 14):
     ax3.set_ylabel('Feeding Counts')  # Label for the right y-axis
     ax3.set_ylim(bottom=0)  # Ensure the y-axis starts at 0
     ax3.legend(loc='upper right')  # For the feeding counts
-
+    
+    log_data = load_log_data(True)
+    log_data_df = convert_log_to_df(log_data)
+    sleep_durations = calculate_sleep_durations(log_data_df)[0]
+    sleep_histogram = calculate_sleep_histogram(sleep_durations)
+    plot_sleep_histogram(sleep_histogram, axs[3])
     
     image_path = 'all_plots.png'  # Temporary location to store the plot
-    plt.subplots_adjust(hspace=0.5)
+    # plt.subplots_adjust(hspace=0.5)
+    plt.tight_layout()
     plt.savefig(image_path, format='png')
     plt.close()  # Close the plot to free up memory
     return send_file(image_path, mimetype='image/png')
