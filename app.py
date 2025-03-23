@@ -163,7 +163,9 @@ def load_daily_stats():
         if still_sleeping:
             time_since_nap = 0
         else:
-            time_diff = datetime.now().replace(second=0,microsecond=0) - today_sleep_durations.iloc[-1]['awake'] 
+            time_diff = datetime.now().replace(second=0,microsecond=0) - today_sleep_durations.iloc[-1]['awake']
+            ## TEMPORARY SOLUTION
+            time_diff = time_diff - 60
             time_since_nap = time_diff.total_seconds() / 60
     
     # Return all stats in one JSON response
